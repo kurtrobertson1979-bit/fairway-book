@@ -23,6 +23,8 @@ https://github.com/kurtrobertson1979-bit/fairway-book/releases/tag/watch-latest
 - Watch: **Settings → About watch → Software information**, then tap **Software version** 7 times until it says developer mode is on.
 - Watch: **Settings → Developer options** → turn on **ADB debugging** and **Wireless debugging** (older watches: **Debug over Wi-Fi**).
 - Make sure the watch and phone are on the same Wi-Fi. Wireless debugging shows the watch's **IP address and port**.
+- **Turn Bluetooth off on the watch while you install.** Otherwise it keeps using its Bluetooth link to the phone, ignores Wi-Fi, and the install fails. Turn it back on afterwards.
+- **Pairing and installing use different port numbers.** Use the IP and port from **Pair new device** (with its six-digit code) to pair, then the IP and port on the main **Wireless debugging** screen to connect and install.
 
 **3. Send the app to the watch from your phone**
 - Install **Wear Installer 2** or **Bugjaeger** from the Play Store on your phone.
