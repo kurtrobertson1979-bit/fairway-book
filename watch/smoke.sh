@@ -5,6 +5,12 @@ set -x
 PKG=com.fairwaybook.watch
 mkdir -p shots
 
+# wait for the emulator to finish booting and settle
+adb wait-for-device
+until [ "$(adb shell getprop sys.boot_completed | tr -d '')" = "1" ]; do sleep 3; done
+sleep 25
+adb shell input keyevent KEYCODE_WAKEUP
+
 adb install -r app-debug.apk
 adb shell pm grant $PKG android.permission.ACCESS_FINE_LOCATION
 adb shell pm grant $PKG android.permission.ACCESS_COARSE_LOCATION
@@ -13,7 +19,13 @@ adb logcat -c
 fix() { adb emu geo fix 0.2995 51.2265; }  # longitude latitude: middle of Poult Wood's 1st fairway
 fix
 adb shell am start -n $PKG/.MainActivity
-sleep 12
+# wait until the course list is on screen
+for i in $(seq 1 20); do
+  adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml ui.xml >/dev/null 2>&1
+  grep -q "Fairway Book" ui.xml && break
+  sleep 3
+done
+sleep 2
 adb exec-out screencap -p > shots/1-courses.png
 
 tap_text() {
@@ -44,7 +56,8 @@ sleep 3
 adb exec-out screencap -p > shots/4-hazards.png
 
 adb logcat -d > shots/logcat.txt
-if grep -q "FATAL EXCEPTION" shots/logcat.txt; then
+# only our own crashes count (the emulator's system apps crash on their own)
+if grep -A 2 "FATAL EXCEPTION" shots/logcat.txt | grep -q "Process: $PKG"; then
   grep -A 30 "FATAL EXCEPTION" shots/logcat.txt
   exit 1
 fi
