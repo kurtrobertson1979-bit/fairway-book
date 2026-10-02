@@ -74,7 +74,7 @@ To try it on a PC: `node dev-server.mjs`, then open http://localhost:8080.
 
 ## Samsung Galaxy Watch
 
-Galaxy Watch 4 and newer run Wear OS, which can't install web apps. A watch version would be a small separate native app (Kotlin). It would show front/centre/back from the watch's own GPS using the course maps from this app. It's a good phase-two project. Until then, use caddie mode on a phone in a trolley or cart holder.
+A standalone Wear OS app lives in `watch/`. It shows front, centre and back from the watch's own GPS, changes hole with the bezel, moves on automatically at the next tee, keeps your own score and shows bunker and water distances. GitHub builds it on every change and tests it on a Wear OS emulator. Install steps: [watch/README.md](watch/README.md). Download: [latest release](https://github.com/kurtrobertson1979-bit/fairway-book/releases/tag/watch-latest).
 
 ## Files
 

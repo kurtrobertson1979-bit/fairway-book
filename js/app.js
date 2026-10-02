@@ -416,12 +416,13 @@ function watchView() {
     title: 'Galaxy Watch', back: '#/more', tab: 'more',
     html: `<section class="card"><h2>Caddie mode</h2>
       <p>During a round, open the GPS tab and tap <b>Caddie mode</b>. It fills the screen with a huge centre-of-green number and front/back underneath, in black and white for bright sun. It suits a phone in a cart holder or trolley clip.</p></section>
-      <section class="card"><h2>On a Samsung Galaxy Watch</h2>
+      <section class="card"><h2>Fairway Book on a Galaxy Watch</h2>
       <div class="prose">
-      <p>Galaxy Watch 4 and newer run Wear OS. Wear OS cannot install web apps like this one, so a real watch face needs a small native Wear OS app.</p>
-      <p>That is a separate build (Kotlin, installed from a PC over Wi-Fi debugging, no Play Store needed). It would show front/centre/back to the green from the watch's own GPS, using the course maps saved here. Your phone stays in the bag.</p>
-      <p>Until then, use caddie mode on the phone in a trolley or cart holder.</p>
-      </div></section>`,
+      <p>There's a watch app for Galaxy Watch 4 and newer. It shows front, centre and back from the watch's own GPS, so the phone can stay in the bag. Turn the bezel to change hole, tap the big number to keep your score, and long-press it for bunker and water distances.</p>
+      <p>Samsung only installs Play Store apps unless developer mode is on, so it's a one-time sideload of about 10 minutes, done with a free phone app called Wear Installer 2.</p>
+      </div>
+      <a class="btn primary" href="https://github.com/kurtrobertson1979-bit/fairway-book/blob/main/watch/README.md" target="_blank" rel="noopener">${icon('watch')} Install guide</a>
+      <a class="btn" href="https://github.com/kurtrobertson1979-bit/fairway-book/releases/tag/watch-latest" target="_blank" rel="noopener">${icon('download')} Download the watch app</a></section>`,
   };
 }
 
