@@ -2,6 +2,7 @@ import { state, save, uid, course } from './store.js';
 import { $, $$, esc, icon, toast, ask, fmtDate, sheet } from './ui.js';
 import * as Geo from './geo.js';
 import { go, render } from './app.js';
+import { bookingLinks } from './plans.js';
 
 const TEE_PRESETS = [['White', '#f4f4f4'], ['Yellow', '#f2c94c'], ['Red', '#d64541'], ['Blue', '#2b5ba8'], ['Black', '#222222'], ['Green', '#2e8b57'], ['Purple', '#7a3fa8'], ['Orange', '#e07b28']];
 
@@ -291,7 +292,7 @@ export function detailView(id) {
     title: c.name, back: '#/courses', tab: 'more',
     html: `<section class="card">
         <div class="row between"><div><span class="eyebrow">${c.holes.length} holes · par ${par}</span><h2>${esc(c.name)}</h2></div></div>
-        ${c.web ? `<a class="small" href="${esc(c.web)}" target="_blank" rel="noopener">${esc(c.web.replace(/^https?:\/\//, ''))}</a>` : ''}
+        ${bookingLinks(c)}
         <div id="ov-map" class="map tall"></div>
         ${editMap ? `<div class="stack" id="mapper">
           <div class="row between"><b>Editing the map</b><div class="seg" style="min-width:150px">${['green', 'tee'].map((w) => `<button data-what="${w}" class="${mapWhat === w ? 'on' : ''}">${w === 'green' ? 'Greens' : 'Tees'}</button>`).join('')}</div></div>
@@ -454,7 +455,7 @@ function drawMarkers(c) {
   c.holes.forEach((h, i) => {
     if (h.line) { L.polyline(h.line, { color: '#fff', weight: 2, opacity: 0.85 }).addTo(ovLayer); pts.push(...h.line); }
     else if (h.tee && h.green?.c) L.polyline([h.tee, h.green.c], { color: '#fff', weight: 2, opacity: 0.7, dashArray: '5 6' }).addTo(ovLayer);
-    if (h.green?.poly) L.polygon(h.green.poly, { color: '#7dffb0', weight: 1.5, fillOpacity: 0.2 }).addTo(ovLayer);
+    if (h.green?.poly) L.polygon(h.green.poly, { color: '#ffffff', weight: 1.5, fillOpacity: 0.2 }).addTo(ovLayer);
     if (h.tee) { L.circleMarker(h.tee, { radius: 4, color: '#fff', fillColor: '#2b5ba8', fillOpacity: 1, weight: 1.5 }).addTo(ovLayer); pts.push(h.tee); }
     const g = h.green?.c;
     if (g && (h.line || h.greenSet || h.green.poly)) {

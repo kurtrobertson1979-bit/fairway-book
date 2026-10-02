@@ -15,9 +15,9 @@ export function demoData() {
     holes, tees: [{ id: 'demo_yel', name: 'Yellow', colour: '#f2c94c', cr: 70.1, slope: 126, yards: pars.map((p) => (p === 3 ? 165 : p === 4 ? 385 : 505)) }],
   };
   const players = [
-    { id: 'demo_p1', name: 'Demo Alex', colour: '#2b5ba8', officialIndex: 14.2, startIndex: 14.2, useOfficial: false, created: 1 },
-    { id: 'demo_p2', name: 'Demo Sam', colour: '#c8352b', officialIndex: 22.6, startIndex: 22.6, useOfficial: false, created: 1 },
-    { id: 'demo_p3', name: 'Demo Jo', colour: '#b56a00', officialIndex: 8.9, startIndex: 8.9, useOfficial: false, created: 1 },
+    { id: 'demo_p1', name: 'Demo Alex', colour: '#1d4f9c', officialIndex: 14.2, startIndex: 14.2, useOfficial: false, created: 1 },
+    { id: 'demo_p2', name: 'Demo Sam', colour: '#c77700', officialIndex: 22.6, startIndex: 22.6, useOfficial: false, created: 1 },
+    { id: 'demo_p3', name: 'Demo Jo', colour: '#5b3fa6', officialIndex: 8.9, startIndex: 8.9, useOfficial: false, created: 1 },
   ];
   const skill = { demo_p1: 0.85, demo_p2: 1.35, demo_p3: 0.55 };
   const rounds = [];

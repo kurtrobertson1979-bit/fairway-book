@@ -193,16 +193,35 @@ export function statsView(id) {
         <div class="list">${nemesis.map((x) => `<div class="item"><div class="grow"><b>${esc(x.cname)} · ${x.hn}</b><p class="small muted">Par ${x.par}, played ${x.n}×</p></div><b class="bignum" style="font-size:1.6rem;color:var(--over)">+${x.over.toFixed(1)}</b></div>`).join('')}</div>
         <span class="eyebrow">Favourite holes</span>
         <div class="list">${friends.map((x) => `<div class="item"><div class="grow"><b>${esc(x.cname)} · ${x.hn}</b><p class="small muted">Par ${x.par}, played ${x.n}×</p></div><b class="bignum" style="font-size:1.6rem;color:${x.over < 0 ? 'var(--under)' : 'var(--ink)'}">${x.over >= 0 ? '+' : ''}${x.over.toFixed(1)}</b></div>`).join('')}</div></section>` : ''}
-      <section class="card"><span class="eyebrow">My bag (GPS-marked shots)</span>
-        ${clubs.length ? `<div class="tbl-wrap"><table class="data"><thead><tr><th>Club</th><th class="r">Avg</th><th class="r">Typical</th><th class="r">Longest</th><th class="r">Shots</th></tr></thead><tbody>
-          ${clubs.map((c) => `<tr><td><b>${c.club}</b></td><td class="r">${conv(c.avg)}</td><td class="r">${conv(c.med)}</td><td class="r">${conv(c.max)}</td><td class="r">${c.n}</td></tr>`).join('')}</tbody></table></div><p class="tiny muted">Distances in ${u === 'yd' ? 'yards' : 'metres'}, including roll.</p>`
-          : '<p class="small muted">On the GPS tab, pick a club and tap <b>Mark ball here</b> before each shot. Your average for every club builds up here.</p>'}</section>
+      <section class="card"><div class="row between"><span class="eyebrow">My bag</span><button class="btn sm" id="edit-bag">${icon('edit')} Edit distances</button></div>
+        <p class="small muted">Used for club suggestions on the GPS screen. Clubs with 3 or more GPS-marked shots use ${esc(p.name)}'s real average automatically.</p>
+        <div class="tbl-wrap"><table class="data"><thead><tr><th>Club</th><th class="r">Plays</th><th class="r">Tracked avg</th><th class="r">Longest</th><th class="r">Shots</th></tr></thead><tbody>
+          ${G.bagFor(p.id).map((b) => { const t = clubs.find((c) => c.club === b.club); return `<tr><td><b>${G.CLUB_NAMES[b.club]}</b></td><td class="r"><b>${u === 'yd' ? b.yd : Math.round(b.yd / 1.0936)}</b> <span class="pill ${b.source === 'tracked' ? 'good' : ''}">${b.source === 'tracked' ? 'GPS' : b.source === 'set' ? 'yours' : 'typical'}</span></td><td class="r">${t ? conv(t.avg) : '—'}</td><td class="r">${t ? conv(t.max) : '—'}</td><td class="r">${t?.n ?? 0}</td></tr>`; }).join('')}</tbody></table></div>
+        <p class="tiny muted">Distances in ${u === 'yd' ? 'yards' : 'metres'}, including roll. To track a club: on the GPS tab pick it, tap <b>Mark ball here</b> where you hit from, then mark where it finished.</p></section>
       ${headToHead(p)}
       <section class="card"><span class="eyebrow">Achievements</span><div class="badges">${badges.map((b) => `<div class="badge${b.got ? ' got' : ''}">${icon(b.got ? 'star' : 'flag')}${esc(b.name)}</div>`).join('')}</div></section>`,
     mount() {
       $$('[data-range]').forEach((b) => (b.onclick = () => { range = b.dataset.range; render(); }));
+      $('#edit-bag').onclick = () => editBag(p.id, render);
     },
   };
+}
+
+export function editBag(playerId, after) {
+  const p = player(playerId);
+  if (!p) return;
+  const own = p.bag || {};
+  sheet(`<h2>${esc(p.name)}'s bag</h2>
+    <p class="small muted">How far each club goes in yards, including roll. Leave blank to use the typical distance shown; enter 0 for a club that isn't in the bag.</p>
+    <div class="grid3">${G.CLUBS.filter((k) => k !== 'Pt').map((k) => `<label class="field">${G.CLUB_NAMES[k]}<input type="number" inputmode="numeric" min="0" max="350" data-bag="${k}" value="${own[k] ?? ''}" placeholder="${G.DEFAULT_BAG[k] ?? '–'}"></label>`).join('')}</div>
+    <button class="btn primary" id="bag-save">Save</button>`, (el, close) => {
+    $('#bag-save', el).onclick = () => {
+      const bag = {};
+      $$('[data-bag]', el).forEach((i) => { if (i.value !== '') bag[i.dataset.bag] = Math.max(0, +i.value); });
+      p.bag = bag; p.updated = Date.now();
+      save(); close(); toast('Bag saved'); after?.();
+    };
+  });
 }
 
 function insights(s) {

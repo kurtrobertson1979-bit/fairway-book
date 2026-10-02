@@ -4,6 +4,46 @@ import { state, course as getCourse, player as getPlayer } from './store.js';
 import { dist } from './geo.js';
 
 export const CLUBS = ['Dr', '3W', '5W', 'Hy', '3i', '4i', '5i', '6i', '7i', '8i', '9i', 'PW', 'GW', 'SW', 'LW', 'Pt'];
+export const CLUB_NAMES = { Dr: 'Driver', '3W': '3 wood', '5W': '5 wood', Hy: 'Hybrid', '3i': '3 iron', '4i': '4 iron', '5i': '5 iron', '6i': '6 iron', '7i': '7 iron', '8i': '8 iron', '9i': '9 iron', PW: 'Pitching wedge', GW: 'Gap wedge', SW: 'Sand wedge', LW: 'Lob wedge', Pt: 'Putter' };
+
+// Typical club golfer's total distances in yards, used until a player sets their own or tracks shots
+export const DEFAULT_BAG = { Dr: 220, '3W': 200, '5W': 185, Hy: 175, '4i': 165, '5i': 155, '6i': 145, '7i': 135, '8i': 125, '9i': 115, PW: 105, GW: 90, SW: 75, LW: 60 };
+
+// A player's distance for each club in yards: tracked average (3+ shots) > their own setting > default.
+// `bag[club] === 0` means the club isn't in the bag.
+export function bagFor(playerId) {
+  const p = getPlayer(playerId);
+  const own = p?.bag || {};
+  const tracked = Object.fromEntries(clubDistances(playerId).filter((c) => c.n >= 3).map((c) => [c.club, Math.round(c.avg * 1.0936133)]));
+  const out = [];
+  for (const k of CLUBS) {
+    if (k === 'Pt') continue;
+    if (own[k] === 0) continue;
+    const yd = tracked[k] ?? own[k] ?? DEFAULT_BAG[k];
+    if (yd) out.push({ club: k, yd, source: tracked[k] ? 'tracked' : own[k] ? 'set' : 'default' });
+  }
+  return out.sort((a, b) => b.yd - a.yd);
+}
+
+// "Plays like" distance with the wind: roughly +1% per mph into the wind, -0.5% per mph helping.
+// windFrom = direction the wind blows from (degrees), shotBearing = direction of the shot.
+export function playsLike(yards, windMph, windFrom, shotBearing) {
+  if (yards == null || !windMph || windFrom == null || shotBearing == null) return yards;
+  const towards = (windFrom + 180) % 360; // where the wind is blowing to
+  const along = Math.cos(((towards - shotBearing) * Math.PI) / 180); // +1 = straight behind you
+  const f = along < 0 ? 1 + 0.01 * windMph * -along : 1 - 0.005 * windMph * along;
+  return Math.round(yards * f);
+}
+
+// Best club for a distance in yards, plus the club either side
+export function clubFor(playerId, yards) {
+  const bag = bagFor(playerId);
+  if (!bag.length || yards == null) return null;
+  if (yards > bag[0].yd + 15) return { pick: bag[0], longer: null, shorter: bag[1] || null, beyond: true };
+  let best = 0;
+  bag.forEach((c, i) => { if (Math.abs(c.yd - yards) < Math.abs(bag[best].yd - yards)) best = i; });
+  return { pick: bag[best], longer: bag[best - 1] || null, shorter: bag[best + 1] || null, beyond: false };
+}
 
 export function teeOf(c, teeId) {
   return c?.tees?.find((t) => t.id === teeId) || c?.tees?.[0] || null;

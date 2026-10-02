@@ -7,6 +7,7 @@ import * as Insights from './insights.js';
 import { fetchWeather, getOnce, WMO, compass } from './geo.js';
 import { demoData } from './demo.js';
 import * as Live from './live.js';
+import * as Plans from './plans.js';
 
 /* ---------------- router ---------------- */
 
@@ -124,10 +125,11 @@ function homeView() {
         : '<div class="empty"><p>Finished rounds appear here, with the winner and the course, and build into your handicap and stats.</p></div>'}</div></section>`;
 
   return {
-    html: hero + setup + tripCard + lads + journey,
+    html: hero + (live ? '' : Plans.nextPlanCard()) + setup + tripCard + lads + journey,
     tab: 'home',
     mount() {
       if (!live && state.players.length && navigator.onLine) homeWeather();
+      if (!live) Plans.mountPlanCard();
     },
   };
 }
@@ -339,6 +341,8 @@ function moreView() {
         <label class="field">Theme<select id="s-theme"><option value="">Match phone</option><option value="light"${s.theme === 'light' ? ' selected' : ''}>Light (best in sunshine)</option><option value="dark"${s.theme === 'dark' ? ' selected' : ''}>Dark</option></select></label>
         <label class="switch">Keep screen on during a round<input type="checkbox" id="s-awake" ${s.keepAwake ? 'checked' : ''}></label>
         <label class="switch">Move to next hole after everyone has scored<input type="checkbox" id="s-adv" ${s.autoAdvance ? 'checked' : ''}></label>
+        <label class="switch">Battery saver<input type="checkbox" id="s-saver" ${s.batterySaver ? 'checked' : ''}></label>
+        <p class="tiny muted" style="margin-top:-8px">GPS, live location and keep-awake only run while the GPS tab is open. Scoring works as normal. The dark theme also saves battery on most phones.</p>
       </section>
 
       <section class="card"><details><summary>How handicaps are worked out</summary><div class="prose" style="margin-top:10px">
@@ -370,6 +374,7 @@ function moreView() {
       $('#s-theme').onchange = (e) => { s.theme = e.target.value; applyTheme(); save(); };
       $('#s-awake').onchange = (e) => { s.keepAwake = e.target.checked; save(); };
       $('#s-adv').onchange = (e) => { s.autoAdvance = e.target.checked; save(); };
+      $('#s-saver').onchange = (e) => { s.batterySaver = e.target.checked; save(); };
       $('#exp').onclick = () => download(`fairway-book-${today()}.json`, fullBackup());
       $('#imp').onclick = async () => {
         const f = await pickFile();
@@ -387,7 +392,7 @@ function moreView() {
       };
       $('#wipe').onclick = async () => {
         if (!(await ask('Delete everything on this phone?', 'Players, courses, rounds and trips will be removed. Save a backup first if you might want them.', 'Delete everything', true))) return;
-        Object.assign(state, { players: [], courses: [], rounds: [], trips: [], scores: [] });
+        Object.assign(state, { players: [], courses: [], rounds: [], trips: [], scores: [], plans: [] });
         await saveNow(); toast('All data deleted'); go('#/');
       };
     },

@@ -1,4 +1,4 @@
-import { state, save, uid, player, course, round, roundBundle, toShareCode } from './store.js';
+import { state, save, uid, player, course, round, roundBundle, toShareCode, deleteRound } from './store.js';
 import { $, $$, esc, icon, avatar, toast, sheet, ask, fmtDate, today, hiText, fmt1, scoreMark, toParText, shareText } from './ui.js';
 import * as G from './golf.js';
 import * as W from './whs.js';
@@ -24,6 +24,16 @@ function newDraft() {
     date: today(), tripId: trip?.id || '', counts: true, pcc: 0,
     players: pids.map((pid, i) => ({ playerId: pid, teeId: c?.tees?.[0]?.id || null, hi: G.playingIndex(pid), team: i % 2 ? 'B' : 'A' })),
   };
+}
+
+// Start a round from a planned tee time
+export function prefillDraft({ courseId, playerIds }) {
+  draft = newDraft();
+  const c = course(courseId);
+  if (c) draft.courseId = courseId;
+  if (playerIds?.length) {
+    draft.players = playerIds.filter((id) => player(id)).map((pid, i) => ({ playerId: pid, teeId: c?.tees?.[0]?.id || null, hi: G.playingIndex(pid), team: i % 2 ? 'B' : 'A' }));
+  }
 }
 
 export function setupView() {
@@ -177,8 +187,10 @@ export function liveView(id) {
       <div class="seg" role="tablist"><button data-tab="score">Score</button><button data-tab="gps">GPS</button><button data-tab="board">Leaderboard</button></div></div>
       <div id="pane" class="stack" style="gap:16px"></div>`,
     mount() {
-      Geo.startGps();
-      if (state.settings.keepAwake) Geo.keepAwake(true);
+      if (!state.settings.batterySaver) {
+        Geo.startGps();
+        if (state.settings.keepAwake) Geo.keepAwake(true);
+      }
       unsubGps = Geo.onFix((fix) => {
         if (fix?.ll) {
           // report the hole you're actually standing on, not just the one open on screen
@@ -220,6 +232,11 @@ function paint(r) {
   $('#holes .on')?.scrollIntoView({ inline: 'center', block: 'nearest' });
   $$('.seg button').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
   destroyMap();
+  if (state.settings.batterySaver) {
+    // Battery saver: GPS and the screen-wake lock only run while the GPS tab is open
+    if (tab === 'gps') { Geo.startGps(); if (state.settings.keepAwake) Geo.keepAwake(true); }
+    else { Geo.stopGps(); Geo.keepAwake(false); }
+  }
   const pane = $('#pane');
   if (tab === 'score') paintScore(r, pane, holes, k);
   else if (tab === 'gps') paintGps(r, pane, holes, k);
@@ -362,11 +379,12 @@ function paintGps(r, pane, holes, k) {
       <div class="yard"><div class="f"><span>Front</span><b id="y-f">—</b></div><div class="c"><span>Centre</span><b id="y-c">—</b></div><div class="b"><span>Back</span><b id="y-b">—</b></div></div>
       <div class="gpsline" id="gps-status"><span class="gpsdot"></span> Finding you…</div>
       <div id="hole-hint"></div>
+      <div id="club-tip" class="small"></div>
       ${hasGreen ? '' : `<p class="small"><span class="pill warn">No green mapped for this hole</span> Stand in the middle of the green and tap <b>Green is here</b>, or load the course map from OpenStreetMap.</p>`}
     </section>
     <section class="card" id="wind-card" hidden></section>
     <section class="card" id="group-card" hidden><div class="row between"><h3>The group</h3><span class="pill live">Live</span></div><div class="list" id="group-list"></div></section>
-    <section class="card" id="haz-card" ${h.hazards?.length ? '' : 'hidden'}><h3>Hazards</h3><div class="haz" id="haz"></div></section>
+    <section class="card" id="haz-card" ${h.hazards?.length || h.line?.length > 2 ? '' : 'hidden'}><h3>Hazards and landmarks</h3><div class="haz" id="haz"></div></section>
     <div class="map tall" id="map"></div>
     <p class="tiny muted">Tap the map to measure to any spot. The label shows distance from you, then from that spot to the green centre.</p>
     <section class="card">
@@ -430,7 +448,7 @@ function initMap(r, h) {
   }).addTo(map);
   const pts = [];
   if (h.line) { L.polyline(h.line, { color: '#ffffff', weight: 2, dashArray: '6 6', opacity: 0.8 }).addTo(map); pts.push(...h.line); }
-  if (h.green?.poly) { L.polygon(h.green.poly, { color: '#7dffb0', weight: 2, fillOpacity: 0.15 }).addTo(map); pts.push(...h.green.poly); }
+  if (h.green?.poly) { L.polygon(h.green.poly, { color: '#ffffff', weight: 2, fillOpacity: 0.15 }).addTo(map); pts.push(...h.green.poly); }
   if (h.green?.c) { L.circleMarker(h.green.c, { radius: 5, color: '#fff', fillColor: '#f2b705', fillOpacity: 1, weight: 2 }).addTo(map); pts.push(h.green.c); }
   if (h.tee) { L.circleMarker(h.tee, { radius: 5, color: '#fff', fillColor: '#2b5ba8', fillOpacity: 1, weight: 2 }).addTo(map); pts.push(h.tee); }
   for (const z of h.hazards || []) L.polygon(z.poly, { color: z.type === 'water' ? '#4aa3ff' : '#f5e6b0', weight: 1.5, fillOpacity: 0.1 }).addTo(map);
@@ -479,11 +497,19 @@ function updateGps(r) {
   $('#y-b').textContent = fmtFB(fb.back);
   const cad = $('#cad-c');
   if (cad) { cad.textContent = D(c); $('#cad-f').textContent = fmtFB(fb.front); $('#cad-b').textContent = fmtFB(fb.back); }
+  clubTip(r, here, h, c);
   // hazards
   const hz = $('#haz');
-  if (hz && h.hazards?.length) {
-    const list = h.hazards.map((z) => ({ ...z, ...Geo.reachCarry(here, z.poly) })).filter((z) => z.carry > 15).sort((a, b) => a.reach - b.reach);
-    hz.innerHTML = list.length ? '<span></span><span class="tiny muted"></span><span class="tiny muted" style="text-align:right">Reach</span><span class="tiny muted" style="text-align:right">Carry</span>' + list.map((z) => `<span class="sw ${z.type}"></span><span class="t">${z.type === 'water' ? 'Water' : 'Bunker'}</span><span class="n">${D(z.reach)}</span><span class="n">${D(z.carry)}</span>`).join('')
+  if (hz && (h.hazards?.length || h.line?.length > 2)) {
+    const list = (h.hazards || []).map((z) => ({ ...z, ...Geo.reachCarry(here, z.poly) })).filter((z) => z.carry > 15);
+    // Dogleg corners: the bends in the mapped line of play that are still ahead of you
+    const toGreen = h.green?.c ? Geo.dist(here, h.green.c) : Infinity;
+    for (const pt of (h.line || []).slice(1, -1)) {
+      if (h.green?.c && Geo.dist(pt, h.green.c) < toGreen - 20) { const d = Geo.dist(here, pt); list.push({ type: 'corner', reach: d, carry: null }); break; }
+    }
+    list.sort((a, b) => a.reach - b.reach);
+    const name = { water: 'Water', bunker: 'Bunker', corner: 'Dogleg corner' };
+    hz.innerHTML = list.length ? '<span></span><span class="tiny muted"></span><span class="tiny muted" style="text-align:right">Reach</span><span class="tiny muted" style="text-align:right">Carry</span>' + list.map((z) => `<span class="sw ${z.type}"></span><span class="t">${name[z.type]}</span><span class="n">${D(z.reach)}</span><span class="n">${z.carry == null ? '' : D(z.carry)}</span>`).join('')
       : '<span></span><span class="small muted">All hazards behind you.</span>';
   }
   // map
@@ -646,7 +672,7 @@ function roundMenu(r) {
     $('#rm-del', el).onclick = async () => {
       close();
       if (!(await ask('Delete this round?', 'All scores in it will be lost.', 'Delete', true))) return;
-      state.rounds = state.rounds.filter((x) => x.id !== r.id); save(); go('#/');
+      deleteRound(r.id); go('#/');
     };
   });
 }
@@ -732,7 +758,7 @@ export function summaryView(id) {
       $('#sm-edit').onclick = () => { r.status = 'live'; r.currentHole = 0; upd(); tab = 'score'; go('#/round/' + r.id); };
       $('#sm-del').onclick = async () => {
         if (!(await ask('Delete this round?', 'It will be removed from everyone\'s history and handicap on this phone.', 'Delete', true))) return;
-        state.rounds = state.rounds.filter((x) => x.id !== r.id); save(); go('#/');
+        deleteRound(r.id); go('#/');
       };
     },
   };
@@ -762,7 +788,28 @@ function drawPeers(r) {
   if (map?._peers && window.L) {
     map._peers.clearLayers();
     for (const p of list) {
-      L.marker(p.ll, { icon: L.divIcon({ className: '', iconSize: null, html: `<div class="tgt-label mid" style="background:${esc(p.colour || '#17663f')};color:#fff;border:2px solid #fff">${esc((p.name || '?').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase())}</div>` }) }).addTo(map._peers);
+      L.marker(p.ll, { icon: L.divIcon({ className: '', iconSize: null, html: `<div class="tgt-label mid" style="background:${esc(p.colour || '#1d4f9c')};color:#fff;border:2px solid #fff">${esc((p.name || '?').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase())}</div>` }) }).addTo(map._peers);
     }
   }
+}
+
+/* ---------- club suggestion ---------- */
+
+function clubTip(r, here, h, centreM) {
+  const el = $('#club-tip');
+  if (!el) return;
+  if (centreM == null || centreM * Geo.M_TO_YD > 650) { el.innerHTML = ''; return; }
+  const yd = Math.round(centreM * Geo.M_TO_YD);
+  const w = wxCache?.w?.current;
+  const plays = w ? G.playsLike(yd, w.wind_speed_10m, w.wind_direction_10m, Geo.bearing(here, h.green.c)) : yd;
+  const pick = G.clubFor(shotPid, plays);
+  if (!pick) { el.innerHTML = ''; return; }
+  const u = (v) => (units() === 'yd' ? v : Math.round(v / Geo.M_TO_YD));
+  const who = r.players.length > 1 ? esc(player(shotPid)?.name || '') + ': ' : '';
+  const diff = plays - yd;
+  el.innerHTML = `<div class="row wrap" style="gap:6px 10px;padding-top:4px;border-top:1px solid var(--line)">
+    ${diff ? `<span>Plays like <b class="bignum" style="font-size:1.3rem">${u(plays)}</b> <span class="muted">(${diff > 0 ? '+' : ''}${u(diff)} wind)</span></span>` : ''}
+    <span>${who}${pick.beyond ? 'Too far to reach: ' : ''}<b>${G.CLUB_NAMES[pick.pick.club]}</b> <span class="muted">(${u(pick.pick.yd)})</span>${pick.longer && !pick.beyond ? ` <span class="muted">or ${G.CLUB_NAMES[pick.longer.club]} ${u(pick.longer.yd)}</span>` : ''}</span>
+    <button class="btn sm ghost" id="bag-edit" style="min-height:28px;padding:2px 8px">My bag</button></div>`;
+  $('#bag-edit').onclick = async () => { const { editBag } = await import('./insights.js'); editBag(shotPid, () => updateGps(r)); };
 }

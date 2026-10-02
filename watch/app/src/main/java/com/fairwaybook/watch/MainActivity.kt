@@ -72,10 +72,12 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-private val Green = Color(0xFF7DFFB0)
+// Colour-blind-safe: gold and blue, no reds or greens
+private val Gold = Color(0xFFFFD24D)
 private val Flag = Color(0xFFF5C531)
-private val Muted = Color(0xFF9DB0A4)
-private val Under = Color(0xFFFF6B5E)
+private val Sky = Color(0xFF7FB8FF)
+private val Muted = Color(0xFF9AA6BD)
+private val Warn = Color(0xFFF0A640)
 
 class Prefs(ctx: Context) {
     private val p = ctx.getSharedPreferences("fwb", Context.MODE_PRIVATE)
@@ -112,7 +114,7 @@ class MainActivity : ComponentActivity() {
             permissions.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
         }
         setContent {
-            MaterialTheme(colors = Colors(primary = Color(0xFF3DBE7A), onPrimary = Color(0xFF06140C), secondary = Flag)) {
+            MaterialTheme(colors = Colors(primary = Color(0xFF6AA5FF), onPrimary = Color(0xFF0A1222), secondary = Flag)) {
                 FairwayApp(gps, prefs)
             }
         }
@@ -172,7 +174,7 @@ fun CoursesScreen(courses: List<Course>, prefs: Prefs, onPick: (String) -> Unit,
         positionIndicator = { PositionIndicator(scalingLazyListState = listState) },
     ) {
         ScalingLazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-            item { ListHeader { Text("Fairway Book", color = Green) } }
+            item { ListHeader { Text("Fairway Book", color = Gold) } }
             items(courses) { c ->
                 Chip(
                     onClick = { onPick(c.id) },
@@ -340,7 +342,7 @@ fun YardageView(
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                fmt(centre, yards), fontSize = 64.sp, fontWeight = FontWeight.Bold, color = Green,
+                fmt(centre, yards), fontSize = 64.sp, fontWeight = FontWeight.Bold, color = Gold,
                 textAlign = TextAlign.Center, modifier = Modifier.width(150.dp),
             )
         }
@@ -351,10 +353,10 @@ fun YardageView(
             Spacer(Modifier.width(8.dp))
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(76.dp)) {
                 val dot = when {
-                    error != null -> Under
+                    error != null -> Warn
                     accuracy == null -> Muted
-                    accuracy < 12f -> Green
-                    else -> Flag
+                    accuracy < 12f -> Sky
+                    else -> Warn
                 }
                 Box(Modifier.size(7.dp).background(dot, CircleShape))
                 Text(
@@ -394,7 +396,7 @@ fun ScoreView(course: Course, hole: Hole, prefs: Prefs, scoreVersion: Int, onCha
                 if (cur == 0) "–" else cur.toString(), fontSize = 52.sp, fontWeight = FontWeight.Bold,
                 color = when {
                     cur == 0 -> Muted
-                    cur < hole.par -> Under
+                    cur < hole.par -> Sky
                     else -> Color.White
                 },
                 textAlign = TextAlign.Center, modifier = Modifier.width(80.dp),

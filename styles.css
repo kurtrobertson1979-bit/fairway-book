@@ -1,22 +1,26 @@
-/* Fairway Book — yardage-book look: condensed signage numerals, scorecard conventions
-   (birdies circled red, bogeys boxed), fairway green with a yellow pin flag accent.
+/* Fairway Book — yardage-book look: condensed signage numerals and scorecard conventions
+   (under par circled, over par boxed). Colour-blind-safe palette: links-blue with a gold pin-flag
+   highlight, no reds or greens. Shape and text always carry meaning; colour only backs it up.
    Layout: single column app shell, sticky header, bottom tab bar, max 640px. */
 :root {
-  --bg: #eef2ec;
+  --bg: #edf0f5;
   --surface: #ffffff;
-  --surface-2: #e3eae1;
-  --ink: #12241a;
-  --muted: #5d6d63;
-  --line: #d3ddd3;
-  --accent: #17663f;
+  --surface-2: #e1e6ef;
+  --ink: #131b2b;
+  --muted: #586276;
+  --line: #d0d7e3;
+  --accent: #1d4f9c;
   --accent-ink: #ffffff;
+  --brand: #1d4f9c;
+  --brand-ink: #ffffff;
   --flag: #f2b705;
-  --flag-ink: #2a2000;
-  --under: #c8352b;
-  --over: #2b5ba8;
-  --warn: #b56a00;
-  --map-bg: #cfd8cc;
-  --shadow: 0 1px 2px rgb(18 36 26 / 8%), 0 4px 14px rgb(18 36 26 / 6%);
+  --flag-ink: #241b00;
+  --under: #1d64d6;
+  --over: #8a5300;
+  --warn: #9a5c00;
+  --danger: #8a5300;
+  --map-bg: #cfd6e2;
+  --shadow: 0 1px 2px rgb(19 27 43 / 8%), 0 4px 14px rgb(19 27 43 / 6%);
   --f-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
   --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --r: 14px;
@@ -25,16 +29,16 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0b1510; --surface: #12201a; --surface-2: #1a2b22; --ink: #e6efe8; --muted: #93a69a;
-    --line: #26382e; --accent: #3dbe7a; --accent-ink: #06140c; --flag: #f5c531; --flag-ink: #241b00;
-    --under: #ff6b5e; --over: #86aef5; --warn: #f0a640; --map-bg: #1a2b22;
+    --bg: #0c1220; --surface: #141c2e; --surface-2: #1d273e; --ink: #e8edf6; --muted: #9aa6bd;
+    --line: #283450; --accent: #6aa5ff; --accent-ink: #0a1222; --brand: #1f4a8f; --brand-ink: #ffffff; --flag: #f5c531; --flag-ink: #241b00;
+    --under: #7fb3ff; --over: #f0a640; --warn: #f0a640; --danger: #f0a640; --map-bg: #1d273e;
     --shadow: 0 1px 2px rgb(0 0 0 / 40%); color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0b1510; --surface: #12201a; --surface-2: #1a2b22; --ink: #e6efe8; --muted: #93a69a;
-  --line: #26382e; --accent: #3dbe7a; --accent-ink: #06140c; --flag: #f5c531; --flag-ink: #241b00;
-  --under: #ff6b5e; --over: #86aef5; --warn: #f0a640; --map-bg: #1a2b22;
+  --bg: #0c1220; --surface: #141c2e; --surface-2: #1d273e; --ink: #e8edf6; --muted: #9aa6bd;
+  --line: #283450; --accent: #6aa5ff; --accent-ink: #0a1222; --brand: #1f4a8f; --brand-ink: #ffffff; --flag: #f5c531; --flag-ink: #241b00;
+  --under: #7fb3ff; --over: #f0a640; --warn: #f0a640; --danger: #f0a640; --map-bg: #1d273e;
   --shadow: 0 1px 2px rgb(0 0 0 / 40%); color-scheme: dark;
 }
 
@@ -61,7 +65,7 @@ p { margin: 0; }
 .top {
   position: sticky; top: 0; z-index: 20;
   padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px 10px;
-  background: var(--accent); color: var(--accent-ink);
+  background: var(--brand); color: var(--brand-ink);
   display: flex; align-items: center; gap: 12px;
 }
 .top .brand { font-family: var(--f-display); font-weight: 700; font-size: 1.35rem; letter-spacing: .02em; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -112,7 +116,7 @@ main { max-width: 640px; margin: 0 auto; padding: 16px 16px calc(var(--tabbar) +
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .btn.flag { background: var(--flag); border-color: var(--flag); color: var(--flag-ink); }
 .btn.ghost { background: transparent; }
-.btn.danger { color: var(--under); border-color: color-mix(in srgb, var(--under) 40%, var(--line)); }
+.btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
 .btn.big { min-height: 56px; font-size: 1.1rem; border-radius: 14px; }
 .btn.block { width: 100%; }
 .btn.sm { min-height: 34px; padding: 6px 10px; font-size: .88rem; border-radius: 10px; }
@@ -130,7 +134,7 @@ main { max-width: 640px; margin: 0 auto; padding: 16px 16px calc(var(--tabbar) +
 .chips.scroll { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
 .chips.scroll::-webkit-scrollbar { display: none; }
 .pill { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 2px 8px; font-size: .74rem; font-weight: 700; letter-spacing: .03em; background: var(--surface-2); color: var(--muted); white-space: nowrap; }
-.pill.live { background: var(--under); color: #fff; }
+.pill.live { background: var(--flag); color: var(--flag-ink); }
 .pill.warn { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
 .pill.good { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
 
@@ -163,7 +167,7 @@ textarea { min-height: 80px; resize: vertical; }
 .tile .k { font-size: .76rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 
 /* ---------- hero / home ---------- */
-.hero { background: var(--accent); color: var(--accent-ink); border-radius: var(--r); padding: 18px; display: flex; flex-direction: column; gap: 12px; position: relative; overflow: hidden; }
+.hero { background: var(--brand); color: var(--brand-ink); border-radius: var(--r); padding: 18px; display: flex; flex-direction: column; gap: 12px; position: relative; overflow: hidden; }
 .hero .eyebrow { color: inherit; opacity: .8; }
 .hero h1 { font-size: 2.2rem; }
 .hero .btn { border-color: transparent; }
@@ -244,7 +248,8 @@ textarea { min-height: 80px; resize: vertical; }
 .haz .n { font-family: var(--f-display); font-weight: 700; font-size: 1.25rem; font-variant-numeric: tabular-nums; text-align: right; }
 .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
 .sw.bunker { background: #e9d8a6; border: 1px solid #b89d53; }
-.sw.water { background: #4a90d9; }
+.sw.water { background: #4a90d9; border: 1px solid #1d4f9c; }
+.sw.corner { background: transparent; border: 2px dashed var(--muted); border-radius: 50%; }
 .clubs { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
 .clubs button { border: 1px solid var(--line); background: var(--surface); border-radius: 9px; min-height: 40px; font-weight: 700; font-size: .85rem; padding: 0; }
 .clubs button.on { background: var(--ink); color: var(--bg); }
@@ -256,7 +261,7 @@ textarea { min-height: 80px; resize: vertical; }
 
 /* caddie (big) mode */
 .caddie { position: fixed; inset: 0; z-index: 100; background: #000; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 24px; text-align: center; }
-.caddie .c { font-family: var(--f-display); font-weight: 700; font-size: min(42vw, 260px); line-height: .85; color: #7dffb0; font-variant-numeric: tabular-nums; }
+.caddie .c { font-family: var(--f-display); font-weight: 700; font-size: min(42vw, 260px); line-height: .85; color: #ffd24d; font-variant-numeric: tabular-nums; }
 .caddie .fb { display: flex; gap: 40px; font-family: var(--f-display); font-size: 3rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .caddie .fb span { display: block; font-size: .9rem; font-family: var(--f-body); letter-spacing: .1em; opacity: .7; }
 .caddie .h { font-family: var(--f-display); font-size: 1.6rem; opacity: .85; }

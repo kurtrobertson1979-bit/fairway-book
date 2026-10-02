@@ -51,6 +51,8 @@ export const state = {
   courses: [],
   rounds: [],
   trips: [],
+  plans: [], // tee times / planned rounds
+  deleted: [], // ids of rounds deleted on this phone, so imports and live sync don't bring them back
   scores: [], // externally entered scores for handicap history: {id, playerId, date, course, cr, slope, ags, holes:18|9, par}
 };
 
@@ -61,6 +63,10 @@ export function subscribe(fn) { subs.add(fn); return () => subs.delete(fn); }
 export async function load() {
   const s = await kvGet('state');
   if (s) Object.assign(state, s, { settings: { ...state.settings, ...(s.settings || {}) } });
+  // Colour-blind-safe palette (2026-10): move players off the old red/green colours
+  const OLD = ['#17663f', '#c8352b', '#2b5ba8', '#b56a00', '#7a3fa8', '#0f7c84', '#a83f6b', '#4b5a1e'];
+  const NEW = ['#1d4f9c', '#c77700', '#5b3fa6', '#2b2f3a', '#0b7fbf', '#8a5300', '#a3699e', '#6b7a90'];
+  for (const p of state.players) { const i = OLD.indexOf(p.colour); if (i >= 0) p.colour = NEW[i]; }
   if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
   return state;
 }
@@ -77,6 +83,12 @@ export function saveNow() {
 }
 
 export const byId = (arr, id) => arr.find((x) => x.id === id);
+
+export function deleteRound(id) {
+  state.rounds = state.rounds.filter((x) => x.id !== id);
+  state.deleted = [...(state.deleted || []).slice(-199), id];
+  save();
+}
 export const player = (id) => byId(state.players, id);
 export const course = (id) => byId(state.courses, id);
 export const round = (id) => byId(state.rounds, id);
@@ -113,6 +125,7 @@ function mergeRound(local, inc) {
 function mergeList(target, incoming, isRounds = false) {
   let added = 0, updated = 0;
   for (const item of incoming || []) {
+    if (isRounds && state.deleted.includes(item.id)) continue;
     const i = target.findIndex((x) => x.id === item.id);
     if (i < 0) { target.push(item); added++; }
     else if (isRounds) { if (mergeRound(target[i], item)) updated++; }
@@ -146,7 +159,7 @@ export function mergeIn(data) {
       scores: (data.scores || []).map((s) => ({ ...s, playerId: fix(s.playerId) })),
     };
   }
-  for (const k of ['players', 'courses', 'rounds', 'trips', 'scores']) {
+  for (const k of ['players', 'courses', 'rounds', 'trips', 'scores', 'plans']) {
     if (data[k]) res[k] = mergeList(state[k], data[k], k === 'rounds');
   }
   save();

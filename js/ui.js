@@ -26,7 +26,7 @@ export function scoreMark(g, par) {
 export function avatar(p, sm = false) {
   if (!p) return `<span class="avatar${sm ? ' sm' : ''}" style="background:#888">?</span>`;
   const ini = (p.name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
-  return `<span class="avatar${sm ? ' sm' : ''}" style="background:${esc(p.colour || '#17663f')}">${esc(ini)}</span>`;
+  return `<span class="avatar${sm ? ' sm' : ''}" style="background:${esc(p.colour || '#1d4f9c')}">${esc(ini)}</span>`;
 }
 
 let toastTimer;
@@ -159,4 +159,6 @@ export function bars(rows, { max } = {}) {
   return `<div class="bars">${rows.map((r) => `<div class="bar"><span>${esc(r.k)}</span><div class="track"><div class="fill ${r.cls || ''}" style="width:${(100 * r.v) / m}%"></div></div><b>${esc(r.label ?? r.v)}</b></div>`).join('')}</div>`;
 }
 
-export const COLOURS = ['#17663f', '#c8352b', '#2b5ba8', '#b56a00', '#7a3fa8', '#0f7c84', '#a83f6b', '#4b5a1e'];
+// Colour-blind-safe player colours (no reds or greens), all readable with white initials
+export const COLOURS = ['#1d4f9c', '#c77700', '#5b3fa6', '#2b2f3a', '#0b7fbf', '#8a5300', '#a3699e', '#6b7a90'];
+export const OLD_COLOURS = ['#17663f', '#c8352b', '#2b5ba8', '#b56a00', '#7a3fa8', '#0f7c84', '#a83f6b', '#4b5a1e'];

@@ -392,6 +392,14 @@ export async function fetchWeather(ll) {
   return r.json();
 }
 
+// Hourly forecast for one day (Open-Meteo gives 16 days ahead)
+export async function fetchForecast(ll, date) {
+  const u = `https://api.open-meteo.com/v1/forecast?latitude=${ll[0].toFixed(3)}&longitude=${ll[1].toFixed(3)}&hourly=temperature_2m,precipitation_probability,wind_speed_10m,wind_direction_10m,wind_gusts_10m,weather_code&wind_speed_unit=mph&timezone=Europe%2FLondon&start_date=${date}&end_date=${date}`;
+  const r = await fetch(u);
+  if (!r.ok) throw new Error('Forecast unavailable');
+  return r.json();
+}
+
 export const WMO = (c) => (c === 0 ? 'Clear' : c <= 2 ? 'Partly cloudy' : c === 3 ? 'Overcast' : c <= 48 ? 'Fog' : c <= 57 ? 'Drizzle' : c <= 67 ? 'Rain' : c <= 77 ? 'Snow' : c <= 82 ? 'Showers' : c <= 86 ? 'Snow showers' : 'Thunderstorm');
 
 export function compass(deg) {
