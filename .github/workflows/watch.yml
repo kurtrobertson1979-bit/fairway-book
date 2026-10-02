@@ -1,0 +1,40 @@
+# Builds the Galaxy Watch (Wear OS) app in the cloud and publishes the APK
+# on the repo's Releases page as "Watch app (latest)".
+name: Watch app
+
+on:
+  push:
+    branches: [main]
+    paths: ['watch/**', 'data/packs/**', '.github/workflows/watch.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build APK
+        run: gradle -p watch assembleDebug --no-daemon --stacktrace
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp watch/app/build/outputs/apk/debug/app-debug.apk FairwayBook-watch.apk
+          gh release delete watch-latest --yes --cleanup-tag || true
+          gh release create watch-latest FairwayBook-watch.apk \
+            --title "Watch app (latest)" \
+            --notes "Fairway Book for Galaxy Watch 4 and newer (Wear OS 3+). Build ${{ github.run_number }} from ${{ github.sha }}. Install instructions are in watch/README.md."

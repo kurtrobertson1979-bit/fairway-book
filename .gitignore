@@ -1,3 +1,7 @@
 .claude/
 node_modules/
 *.log
+watch/.gradle/
+watch/build/
+watch/app/build/
+watch/local.properties
