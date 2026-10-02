@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fairway Book</title>
+<meta name="description" content="Scorecard, WHS handicap tracker, GPS rangefinder and stats for our golf group.">
+<meta name="theme-color" content="#17663f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fairway Book">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="vendor/leaflet.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top">
+  <button id="nav-back" aria-label="Back" hidden><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <svg class="flagmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 21V3"/><path d="M6 4h11l-2.5 4L17 12H6" fill="currentColor" fill-opacity=".25"/></svg>
+  <div class="brand" id="title">Fairway Book</div>
+  <div id="top-actions" class="row"></div>
+</header>
+<main id="view" tabindex="-1"></main>
+<nav class="tabbar" id="tabbar" aria-label="Main">
+  <a href="#/" data-tab="home"></a>
+  <a href="#/handicap" data-tab="handicap"></a>
+  <a href="#/play" data-tab="play" class="play"></a>
+  <a href="#/stats" data-tab="stats"></a>
+  <a href="#/more" data-tab="more"></a>
+</nav>
+<script src="vendor/leaflet.js"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
