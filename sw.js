@@ -1,8 +1,8 @@
 // Offline support: app shell is cached on install; map tiles and fonts are cached as they load.
-const VERSION = 'fwb-v3';
+const VERSION = 'fwb-v4';
 const SHELL = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest',
-  'js/app.js', 'js/store.js', 'js/ui.js', 'js/golf.js', 'js/whs.js', 'js/geo.js', 'js/play.js', 'js/courses.js', 'js/insights.js', 'js/demo.js',
+  'js/app.js', 'js/store.js', 'js/ui.js', 'js/golf.js', 'js/whs.js', 'js/geo.js', 'js/play.js', 'js/courses.js', 'js/insights.js', 'js/demo.js', 'js/live.js',
   'vendor/leaflet.js', 'vendor/leaflet.css', 'data/england-courses.json', 'data/packs/index.json', 'data/packs/poult-wood-18.json', 'data/packs/poult-wood-9.json', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
 ];
 

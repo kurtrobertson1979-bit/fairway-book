@@ -6,6 +6,7 @@ import * as Courses from './courses.js';
 import * as Insights from './insights.js';
 import { fetchWeather, getOnce, WMO, compass } from './geo.js';
 import { demoData } from './demo.js';
+import * as Live from './live.js';
 
 /* ---------------- router ---------------- */
 
@@ -34,6 +35,7 @@ const routes = [
   [/^trip\/(\w+)$/, (id) => tripView(id)],
   [/^more$/, () => moreView()],
   [/^watch$/, () => watchView()],
+  [/^join\/([\w-]+)$/, (code) => joinView(code)],
 ];
 
 function redirect(h) { setTimeout(() => (location.hash = h), 0); return { html: '' }; }
@@ -324,6 +326,8 @@ function moreView() {
         <a class="item" href="#/watch">${icon('watch', 'width="24"')}<div class="grow"><b>Galaxy Watch</b><p class="small muted">Caddie mode and watch options</p></div></a>
       </div></section>
 
+      ${liveCard()}
+
       <section class="card"><h2>Share with the lads</h2>
         <p class="small muted">Everything is stored on this phone. To keep everyone's history in step, send a round as a share code (WhatsApp works) or swap backup files. Importing merges rounds and never duplicates them.</p>
         <div class="btns"><button class="btn primary" id="imp-code">${icon('download')} Paste a share code</button><button class="btn" id="share-all">${icon('share')} Send everything</button></div>
@@ -361,6 +365,7 @@ function moreView() {
       </div></details></section>
       <p class="tiny muted" style="text-align:center">Fairway Book · course maps © OpenStreetMap contributors · imagery © Esri · weather by Open-Meteo</p>`,
     mount(el) {
+      mountLiveCard();
       $('#s-units').onchange = (e) => { s.units = e.target.value; save(); };
       $('#s-theme').onchange = (e) => { s.theme = e.target.value; applyTheme(); save(); };
       $('#s-awake').onchange = (e) => { s.keepAwake = e.target.checked; save(); };
@@ -428,6 +433,82 @@ function watchView() {
 
 /* ---------------- boot ---------------- */
 
+/* ---------------- live group ---------------- */
+
+function liveCard() {
+  if (!Live.inGroup()) {
+    return `<section class="card" id="live-card"><h2>Live group</h2>
+      <p class="small muted">See where the lads are on the course map and watch the leaderboard update as each of you scores on your own phone. Positions are only shared during a round, and everything is encrypted on the phone before it leaves.</p>
+      <div class="btns"><button class="btn primary" id="live-new">${icon('people')} Start a live group</button><button class="btn" id="live-join">Join with a code</button></div></section>`;
+  }
+  const st = Live.liveStatus();
+  const n = Live.peerList().length;
+  const me = player(state.settings.meId);
+  return `<section class="card" id="live-card"><div class="row between"><h2>Live group</h2><span class="pill ${st === 'live' ? 'good' : 'warn'}">${st === 'live' ? 'Connected' : st === 'error' ? 'Offline' : 'Connecting…'}</span></div>
+    <p class="small muted">${n ? `${n} of the lads seen in the last 15 minutes.` : 'Nobody else on the course right now.'} You appear as <b>${esc(me?.name || 'nobody yet')}</b>.</p>
+    <label class="switch">Share my location during rounds<input type="checkbox" id="live-share" ${Live.sharing() ? 'checked' : ''}></label>
+    <div class="btns"><button class="btn primary" id="live-invite">${icon('share')} Invite the lads</button><button class="btn danger" id="live-leave">Leave group</button></div></section>`;
+}
+
+function mountLiveCard() {
+  $('#live-new')?.addEventListener('click', () => ensureMe(() => startGroup()));
+  $('#live-join')?.addEventListener('click', () => {
+    sheet(`<h2>Join a live group</h2><p class="small muted">Paste the invite message or code a mate sent you.</p>
+      <textarea id="lj-code" placeholder="https://…#/join/… or the code"></textarea>
+      <div class="btns"><button class="btn" data-close>Cancel</button><button class="btn primary" id="lj-go">Join</button></div>`, (el, close) => {
+      $('#lj-go', el).onclick = () => {
+        const m = $('#lj-code', el).value.match(/join\/([\w-]{16,})/) || $('#lj-code', el).value.trim().match(/^([\w-]{16,})$/);
+        if (!m) return toast('That does not look like an invite');
+        close(); ensureMe(() => joinGroup(m[1]));
+      };
+    });
+  });
+  $('#live-share')?.addEventListener('change', (e) => { state.settings.live.share = e.target.checked; save(); });
+  $('#live-invite')?.addEventListener('click', () => shareText(`⛳ Join our Fairway Book live group: see each other on the course map and a live leaderboard.\nOpen this on your phone:\n${Live.inviteLink()}`));
+  $('#live-leave')?.addEventListener('click', async () => {
+    if (!(await ask('Leave the live group?', 'You stop sharing your position and stop receiving live scores. Rounds already on this phone stay.', 'Leave', true))) return;
+    Live.leave(); render();
+  });
+}
+
+// Live sharing needs to know which player is on this phone
+function ensureMe(next) {
+  if (player(state.settings.meId)) return next();
+  if (!state.players.length) return editPlayer(null, (p) => { state.settings.meId = p.id; p.isMe = true; save(); next(); });
+  sheet(`<h2>Which one is you?</h2><p class="small muted">The lads see this name on the map.</p>
+    <div class="list">${state.players.map((p) => `<button class="item btn ghost" data-me="${p.id}" style="justify-content:flex-start">${avatar(p)} ${esc(p.name)}</button>`).join('')}</div>
+    <button class="btn" id="me-new">${icon('plus')} I'm not listed</button>`, (el, close) => {
+    $$('[data-me]', el).forEach((b) => (b.onclick = () => {
+      state.players.forEach((p) => (p.isMe = p.id === b.dataset.me));
+      state.settings.meId = b.dataset.me; save(); close(); next();
+    }));
+    $('#me-new', el).onclick = () => { close(); editPlayer(null, (p) => { state.settings.meId = p.id; save(); next(); }); };
+  });
+}
+
+async function startGroup() {
+  await Live.join(Live.newCode());
+  render();
+  shareText(`⛳ Join our Fairway Book live group: see each other on the course map and a live leaderboard.\nOpen this on your phone:\n${Live.inviteLink()}`);
+}
+
+async function joinGroup(code) {
+  if (state.settings.live?.code === code) { toast('Already in this group'); return go('#/more'); }
+  await Live.join(code);
+  toast('Joined the live group');
+  go('#/more');
+}
+
+function joinView(code) {
+  return {
+    title: 'Live group', back: '#/',
+    html: `<section class="card"><h2>Join the live group?</h2>
+      <p>You'll see the lads on the course map and the leaderboard will update as each of you scores. Your position is shared with the group during rounds only, and you can switch that off at any time under More.</p>
+      <div class="btns"><a class="btn" href="#/">Not now</a><button class="btn primary" id="jv-go">${icon('people')} Join</button></div></section>`,
+    mount() { $('#jv-go').onclick = () => ensureMe(() => joinGroup(code)); },
+  };
+}
+
 function applyTheme() {
   const t = state.settings.theme;
   if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
@@ -439,6 +520,12 @@ async function boot() {
   applyTheme();
   window.addEventListener('hashchange', render);
   render();
+  if (Live.inGroup()) Live.connect();
+  // keep the More page's live status fresh
+  Live.onLive((what) => {
+    if (what === 'status' && location.hash === '#/more') { const c = $('#live-card'); if (c) { c.outerHTML = liveCard(); mountLiveCard(); } }
+    if (what === 'round' && (location.hash === '#/' || location.hash === '')) render();
+  });
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }

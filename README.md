@@ -49,9 +49,17 @@ A golf app for our group: scorecard, WHS handicap tracker, GPS rangefinder, stat
 - Trips (a weekend away, a season) with a running Stableford leaderboard
 - Achievements: first birdie, broke 90, 36 points, sandy, back-to-back birdies and more
 
+## Live group
+
+**More → Live group → Start a live group** creates a private group and shares a join link. Everyone who joins:
+- appears on each other's GPS map during a round, with distance and the hole they're on
+- sees the leaderboard update live; several people can score the same round on their own phones and every hole merges
+
+Messages go through the free ntfy.sh relay, encrypted on the phone (AES-GCM) with a key from the group code, so the relay only sees scrambled data. Positions are only sent during a round, about once a minute when moving, and sharing can be switched off.
+
 ## Sharing with the lads
 
-Everything is stored on the phone, with no server and no logins. To keep everyone's history in step:
+Everything is stored on the phone, with no logins. Outside a live group, keep everyone's history in step like this:
 - **Send round to the lads** on the round summary creates a share code. Paste it in the WhatsApp group.
 - Each of them taps **More → Paste a share code**. Rounds merge by ID, so nothing is duplicated.
 - **Save backup file** / **Open backup file** copies the whole lot between phones.

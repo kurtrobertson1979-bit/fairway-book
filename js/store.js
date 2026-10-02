@@ -85,11 +85,37 @@ export const round = (id) => byId(state.rounds, id);
 
 const stamp = (x) => x?.updated || x?.created || 0;
 
-function mergeList(target, incoming) {
+// Same round on two phones: merge hole by hole (each score entry carries its own time `t`),
+// so several people can score at once without overwriting each other.
+// The round object is updated in place so open screens keep working.
+function mergeRound(local, inc) {
+  let changed = false;
+  for (const ip of inc.players || []) {
+    const lp = local.players.find((p) => p.playerId === ip.playerId);
+    if (!lp) { local.players.push(ip); changed = true; continue; }
+    (ip.scores || []).forEach((e, i) => {
+      const le = lp.scores[i] || {};
+      if ((e?.t || 0) > (le.t || 0)) { lp.scores[i] = e; changed = true; }
+    });
+  }
+  const seen = new Set((local.shots || []).map((s) => s.pid + ':' + s.t));
+  for (const s of inc.shots || []) if (!seen.has(s.pid + ':' + s.t)) { (local.shots ||= []).push(s); changed = true; }
+  if (stamp(inc) > stamp(local)) {
+    for (const k of ['status', 'format', 'allowance', 'notes', 'side', 'tripId', 'pcc', 'countsForHandicap', 'date', 'finished', 'weather']) {
+      if (k in inc) local[k] = inc[k];
+    }
+    local.updated = stamp(inc);
+    changed = true;
+  }
+  return changed;
+}
+
+function mergeList(target, incoming, isRounds = false) {
   let added = 0, updated = 0;
   for (const item of incoming || []) {
     const i = target.findIndex((x) => x.id === item.id);
     if (i < 0) { target.push(item); added++; }
+    else if (isRounds) { if (mergeRound(target[i], item)) updated++; }
     else if (stamp(item) > stamp(target[i])) { target[i] = item; updated++; }
   }
   return { added, updated };
@@ -121,7 +147,7 @@ export function mergeIn(data) {
     };
   }
   for (const k of ['players', 'courses', 'rounds', 'trips', 'scores']) {
-    if (data[k]) res[k] = mergeList(state[k], data[k]);
+    if (data[k]) res[k] = mergeList(state[k], data[k], k === 'rounds');
   }
   save();
   return res;

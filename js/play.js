@@ -4,6 +4,7 @@ import * as G from './golf.js';
 import * as W from './whs.js';
 import * as Geo from './geo.js';
 import { go, render, editPlayer, editTrip } from './app.js';
+import * as Live from './live.js';
 
 const units = () => state.settings.units || 'yd';
 const D = (m) => Geo.fmtDist(m, units());
@@ -147,6 +148,7 @@ function startRound() {
   };
   state.rounds.push(r);
   save();
+  Live.shareRound(r);
   draft = null;
   tab = 'score';
   go('#/round/' + r.id);
@@ -157,6 +159,7 @@ function startRound() {
 let tab = 'score';
 let map = null;
 let unsubGps = null;
+let unsubLive = null;
 let target = null;
 let shotPid = null;
 let shotClub = null;
@@ -176,13 +179,25 @@ export function liveView(id) {
     mount() {
       Geo.startGps();
       if (state.settings.keepAwake) Geo.keepAwake(true);
-      unsubGps = Geo.onFix(() => { if (tab === 'gps') updateGps(r); });
+      unsubGps = Geo.onFix((fix) => {
+        if (fix?.ll) {
+          // report the hole you're actually standing on, not just the one open on screen
+          const near = Geo.nearestHole(holesOf(r).filter((x) => x.line), fix.ll);
+          Live.sharePosition(fix, r, near?.n ?? holesOf(r)[r.currentHole ?? 0]?.n);
+        }
+        if (tab === 'gps') updateGps(r);
+      });
+      unsubLive = Live.onLive((what) => {
+        if (what === 'round' && tab !== 'gps' && !document.querySelector('.scrim')) paint(r);
+        if (tab === 'gps') drawPeers(r);
+      });
       $$('.seg button').forEach((b) => (b.onclick = () => { tab = b.dataset.tab; paint(r); }));
       $('#r-menu').onclick = () => roundMenu(r);
       paint(r);
     },
     unmount() {
       unsubGps?.(); unsubGps = null;
+      unsubLive?.(); unsubLive = null;
       destroyMap();
       Geo.keepAwake(false);
       Geo.stopGps();
@@ -243,37 +258,37 @@ function paintScore(r, pane, holes, k) {
     else e.g = Math.max(1, Math.min(15, e.g + dir));
     e.pu = false;
     if (navigator.vibrate) navigator.vibrate(8);
-    touch(r); paintScore(r, pane, holes, k); refreshHoleDots(r, holes);
+    touch(r, e); paintScore(r, pane, holes, k); refreshHoleDots(r, holes);
     maybeAdvance(r, holes, k, pane);
   }));
-  $$('[data-clear]', pane).forEach((b) => (b.onclick = () => { r.players[+b.dataset.clear].scores[h.i] = {}; touch(r); paintScore(r, pane, holes, k); refreshHoleDots(r, holes); }));
+  $$('[data-clear]', pane).forEach((b) => (b.onclick = () => { r.players[+b.dataset.clear].scores[h.i] = {}; touch(r, e); paintScore(r, pane, holes, k); refreshHoleDots(r, holes); }));
   $$('[data-pu]', pane).forEach((b) => (b.onclick = () => {
     const pi = +b.dataset.pu; const e = r.players[pi].scores[h.i] ||= {};
     e.pu = !e.pu;
     e.g = e.pu ? W.netDoubleBogey(h.par, strokes[pi][k]) : null;
-    touch(r); paintScore(r, pane, holes, k); refreshHoleDots(r, holes);
+    touch(r, e); paintScore(r, pane, holes, k); refreshHoleDots(r, holes);
   }));
   $$('[data-putt]', pane).forEach((b) => (b.onclick = () => {
     const [pi, dir] = b.dataset.putt.split(':').map(Number);
     const e = r.players[pi].scores[h.i] ||= {};
     e.putts = Math.max(0, Math.min(6, (e.putts ?? (dir > 0 ? 1 : 2)) + dir));
-    touch(r); paintScore(r, pane, holes, k);
+    touch(r, e); paintScore(r, pane, holes, k);
   }));
   $$('[data-pen]', pane).forEach((b) => (b.onclick = () => {
     const [pi, dir] = b.dataset.pen.split(':').map(Number);
     const e = r.players[pi].scores[h.i] ||= {};
     e.pen = Math.max(0, Math.min(6, (e.pen || 0) + dir));
-    touch(r); paintScore(r, pane, holes, k);
+    touch(r, e); paintScore(r, pane, holes, k);
   }));
   $$('[data-fir]', pane).forEach((b) => (b.onclick = () => {
     const [pi, v] = b.dataset.fir.split(':');
     const e = r.players[+pi].scores[h.i] ||= {};
     e.fir = e.fir === v ? null : v;
-    touch(r); paintScore(r, pane, holes, k);
+    touch(r, e); paintScore(r, pane, holes, k);
   }));
   $$('[data-sand]', pane).forEach((b) => (b.onclick = () => {
     const e = r.players[+b.dataset.sand].scores[h.i] ||= {};
-    e.sand = !e.sand; touch(r); paintScore(r, pane, holes, k);
+    e.sand = !e.sand; touch(r, e); paintScore(r, pane, holes, k);
   }));
   $('#stats-tog', pane).onclick = () => { state.settings.trackStats = state.settings.trackStats === false; save(); paintScore(r, pane, holes, k); };
   $('#prev', pane)?.addEventListener('click', () => { r.currentHole = k - 1; save(); paint(r); });
@@ -297,7 +312,12 @@ function maybeAdvance(r, holes, k) {
   }, 2600);
 }
 
-function touch(r) { r.updated = Date.now(); save(); }
+function touch(r, entry) {
+  if (entry) entry.t = Date.now();
+  r.updated = Date.now();
+  save();
+  Live.shareRound(r);
+}
 
 function scoreName(g, par) {
   if (!g) return '';
@@ -345,6 +365,7 @@ function paintGps(r, pane, holes, k) {
       ${hasGreen ? '' : `<p class="small"><span class="pill warn">No green mapped for this hole</span> Stand in the middle of the green and tap <b>Green is here</b>, or load the course map from OpenStreetMap.</p>`}
     </section>
     <section class="card" id="wind-card" hidden></section>
+    <section class="card" id="group-card" hidden><div class="row between"><h3>The group</h3><span class="pill live">Live</span></div><div class="list" id="group-list"></div></section>
     <section class="card" id="haz-card" ${h.hazards?.length ? '' : 'hidden'}><h3>Hazards</h3><div class="haz" id="haz"></div></section>
     <div class="map tall" id="map"></div>
     <p class="tiny muted">Tap the map to measure to any spot. The label shows distance from you, then from that spot to the green centre.</p>
@@ -417,6 +438,7 @@ function initMap(r, h) {
   else { const c = course(r.courseId); map.setView(pts[0] || [c.lat, c.lon], 17); }
   map._pts = pts;
   map._me = null; map._tgt = null; map._lines = null;
+  map._peers = L.layerGroup().addTo(map);
   map.on('click', (e) => { target = [e.latlng.lat, e.latlng.lng]; drawTarget(h); });
 }
 
@@ -475,6 +497,7 @@ function updateGps(r) {
     else map._me.setLatLng(here);
     if (target) drawTarget(h);
   }
+  drawPeers(r);
   // hole hint
   const near = Geo.nearestHole(holes.filter((x) => x.line), here);
   const hint = $('#hole-hint');
@@ -694,7 +717,7 @@ export function summaryView(id) {
       <div class="btns"><button class="btn primary" id="sm-send">${icon('share')} Send round to the lads</button><button class="btn" id="sm-text">Share result text</button></div>
       <div class="btns"><button class="btn" id="sm-edit">${icon('edit')} Edit scores</button><button class="btn danger" id="sm-del">${icon('trash')} Delete</button></div>`,
     mount() {
-      const upd = () => { r.updated = Date.now(); save(); };
+      const upd = () => { r.updated = Date.now(); save(); Live.shareRound(r); };
       $('#sm-counts').onchange = (e) => { r.countsForHandicap = e.target.checked; upd(); render(); };
       $('#sm-ntp').onchange = (e) => { (r.side ||= {}).ntp = e.target.value; upd(); };
       $('#sm-ld').onchange = (e) => { (r.side ||= {}).ld = e.target.value; upd(); };
@@ -716,3 +739,30 @@ export function summaryView(id) {
 }
 
 export { hiText };
+
+/* ---------- live group on the GPS tab ---------- */
+
+function ago(ts) {
+  const m = Math.round((Date.now() - ts) / 60000);
+  return m < 1 ? 'just now' : m === 1 ? '1 min ago' : m + ' min ago';
+}
+
+function drawPeers(r) {
+  const card = $('#group-card');
+  if (!card) return;
+  const list = Live.peerList();
+  card.hidden = !Live.inGroup() || !list.length;
+  const here = Geo.lastFix?.ll;
+  $('#group-list').innerHTML = list.map((p) => {
+    const d = here ? Geo.dist(here, p.ll) : null;
+    return `<div class="item">${avatar({ name: p.name, colour: p.colour }, true)}<div class="grow"><b>${esc(p.name)}</b>
+      <p class="small muted">${p.hole ? 'On the ' + p.hole + (p.hole === 1 ? 'st' : p.hole === 2 ? 'nd' : p.hole === 3 ? 'rd' : 'th') + ' · ' : ''}${ago(p.ts)}</p></div>
+      ${d != null ? `<b class="bignum" style="font-size:1.4rem">${D(d)}<small class="muted" style="font-size:.8rem"> ${units()}</small></b>` : ''}</div>`;
+  }).join('');
+  if (map?._peers && window.L) {
+    map._peers.clearLayers();
+    for (const p of list) {
+      L.marker(p.ll, { icon: L.divIcon({ className: '', iconSize: null, html: `<div class="tgt-label mid" style="background:${esc(p.colour || '#17663f')};color:#fff;border:2px solid #fff">${esc((p.name || '?').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase())}</div>` }) }).addTo(map._peers);
+    }
+  }
+}

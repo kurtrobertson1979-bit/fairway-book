@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Get Fairway Book</title>
+<style>
+  :root { --bg: #eef2ec; --card: #fff; --ink: #12241a; --muted: #5d6d63; --accent: #17663f; --flag: #f2b705; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0b1510; --card: #12201a; --ink: #e6efe8; --muted: #93a69a; --accent: #3dbe7a; } }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 900px; margin: 0 auto; padding: 32px 16px; display: grid; gap: 20px; }
+  h1 { margin: 0; font-size: 1.9rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+  .card { background: var(--card); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 10px; align-items: center; text-align: center; }
+  .qr { background: #fff; padding: 12px; border-radius: 12px; }
+  .qr img { display: block; width: 220px; height: 220px; image-rendering: pixelated; }
+  .step { color: var(--muted); font-size: .92rem; }
+  code { word-break: break-all; font-size: .78rem; color: var(--muted); }
+  b.n { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #fff; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Get Fairway Book on your phone and watch</h1>
+  <p class="step">Point your phone's camera at a code and tap the link that pops up.</p>
+  <div class="grid">
+    <div class="card">
+      <b class="n">1</b><h2 style="margin:0">Phone app</h2>
+      <div class="qr" id="qr-app"></div>
+      <p class="step">Opens the app. Then use Chrome's menu ⋮ → <b>Install app</b>.</p>
+      <code id="u-app"></code>
+    </div>
+    <div class="card">
+      <b class="n">2</b><h2 style="margin:0">Watch app file</h2>
+      <div class="qr" id="qr-apk"></div>
+      <p class="step">Downloads <b>FairwayBook-watch.apk</b> (21 MB) to the phone's Downloads. Then send it to the watch with Wear Installer 2.</p>
+      <code id="u-apk"></code>
+    </div>
+  </div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script>
+  const links = {
+    app: 'https://kurtrobertson1979-bit.github.io/fairway-book/',
+    apk: 'https://github.com/kurtrobertson1979-bit/fairway-book/releases/download/watch-latest/FairwayBook-watch.apk',
+  };
+  for (const [k, url] of Object.entries(links)) {
+    const q = qrcode(0, 'M');
+    q.addData(url);
+    q.make();
+    document.getElementById('qr-' + k).innerHTML = q.createImgTag(6, 0);
+    document.getElementById('u-' + k).textContent = url;
+  }
+</script>
+</body>
+</html>
