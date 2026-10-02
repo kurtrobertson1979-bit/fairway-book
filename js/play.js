@@ -40,6 +40,9 @@ function paintSetup() {
   const d = draft;
   const c = course(d.courseId);
   if (c && d.players.some((p) => !c.tees.some((t) => t.id === p.teeId))) d.players.forEach((p) => { if (!c.tees.some((t) => t.id === p.teeId)) p.teeId = c.tees[0]?.id; });
+  // Formats that need opponents: fall back to Stableford when playing alone
+  const MIN_PLAYERS = { match: 2, skins: 2, bbstable: 2, fourball: 4 };
+  if ((MIN_PLAYERS[d.format] || 1) > d.players.length) { d.format = 'stableford'; d.allowance = null; }
   const fmt = W.FORMATS[d.format];
   const allowance = d.allowance ?? fmt.allowance;
   const fakeRound = { ...d, allowance, players: d.players };
@@ -59,7 +62,8 @@ function paintSetup() {
 
   <section class="card">
     <h2>Format</h2>
-    <div class="chips">${Object.entries(W.FORMATS).map(([k, f]) => `<button class="chip${d.format === k ? ' on' : ''}" data-fmt="${k}">${f.label}</button>`).join('')}</div>
+    <div class="chips">${Object.entries(W.FORMATS).map(([k, f]) => `<button class="chip${d.format === k ? ' on' : ''}" data-fmt="${k}" ${(MIN_PLAYERS[k] || 1) > d.players.length ? 'disabled style="opacity:.4"' : ''}>${f.label}</button>`).join('')}</div>
+    ${d.players.length === 1 ? '<p class="tiny muted">Playing on your own: score it as stroke play or Stableford. It still counts towards your handicap.</p>' : ''}
     <div class="grid2">
       <label class="field">Handicap allowance %<input type="number" id="s-allow" value="${allowance}" min="0" max="100" inputmode="numeric"></label>
       <label class="field">Date<input type="date" id="s-date" value="${d.date}"></label>
@@ -673,7 +677,7 @@ export function summaryView(id) {
     title: c?.name || 'Round', back: '#/', tab: 'home',
     actions: `<button id="sm-share" aria-label="Share">${icon('share')}</button>`,
     html: `<section class="hero"><div class="stripes"></div><span class="eyebrow">${fmtDate(r.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
-        <h1>${w?.player ? `${esc(w.player.name)} wins` : 'Round complete'}</h1>
+        <h1>${r.players.length === 1 && w ? (r.format === 'stroke' ? `${w.gross} gross, ${toParText(w.netToPar)} net` : `${w.pts} points`) : w?.player ? `${esc(w.player.name)} wins` : 'Round complete'}</h1>
         <p>${esc(c?.name || '')} · ${esc(W.FORMATS[r.format]?.label)}${G.isNine(r) ? ' · 9 holes' : ''}${r.weather ? ` · ${Math.round(r.weather.temp)}°C, wind ${Math.round(r.weather.wind)} mph` : ''}</p></section>
       ${boardHtml(r, { summary: true })}
       <section class="card"><span class="eyebrow">Handicap</span>

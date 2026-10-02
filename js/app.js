@@ -152,7 +152,7 @@ export function roundItem(r) {
     <div class="tl-date"><b>${d.getDate()}</b><span>${d.toLocaleDateString('en-GB', { month: 'short' })} ${String(d.getFullYear()).slice(2)}</span></div>
     <div class="stack" style="gap:2px">
       <div class="row between"><b class="ellip">${esc(c?.name || 'Unknown course')}</b>${G.isNine(r) ? '<span class="pill">9 holes</span>' : ''}</div>
-      <div class="small muted ellip">${w?.player ? `${esc(w.player.name)} won · ${res}` : ''} · ${r.players.length} player${r.players.length > 1 ? 's' : ''}</div>
+      <div class="small muted ellip">${r.players.length === 1 ? `${esc(w?.player?.name || '')} · ${res} · solo` : `${w?.player ? `${esc(w.player.name)} won · ${res}` : ''} · ${r.players.length} players`}</div>
       <div class="row" style="gap:4px">${r.players.map((rp) => avatar(player(rp.playerId), true)).join('')}</div>
     </div></a>`;
 }

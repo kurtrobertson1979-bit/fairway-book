@@ -29,6 +29,11 @@ jobs:
       - name: Build APK
         run: gradle -p watch assembleDebug --no-daemon --stacktrace
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: watch/app/build/outputs/apk/debug/app-debug.apk
+
       - name: Publish release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -38,3 +43,31 @@ jobs:
           gh release create watch-latest FairwayBook-watch.apk \
             --title "Watch app (latest)" \
             --notes "Fairway Book for Galaxy Watch 4 and newer (Wear OS 3+). Build ${{ github.run_number }} from ${{ github.sha }}. Install instructions are in watch/README.md."
+
+  smoke-test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run on a Wear OS emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: android-wear
+          arch: x86
+          profile: wearos_large_round
+          disable-animations: true
+          script: bash watch/smoke.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: shots/
