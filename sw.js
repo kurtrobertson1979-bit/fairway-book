@@ -1,5 +1,5 @@
 // Offline support: app shell is cached on install; map tiles and fonts are cached as they load.
-const VERSION = 'fwb-v2';
+const VERSION = 'fwb-v3';
 const SHELL = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest',
   'js/app.js', 'js/store.js', 'js/ui.js', 'js/golf.js', 'js/whs.js', 'js/geo.js', 'js/play.js', 'js/courses.js', 'js/insights.js', 'js/demo.js',

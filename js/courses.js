@@ -164,6 +164,21 @@ export async function installPack(osm) {
   return pc;
 }
 
+// Put a built-in course back exactly as it ships, keeping its id so rounds stay linked
+export async function restorePack(c) {
+  const entry = (await packIndex())[c.osm];
+  if (!entry) return false;
+  try {
+    const r = await fetch('data/packs/' + entry.file, { cache: 'reload' });
+    if (!r.ok) return false;
+    const pc = await r.json();
+    for (const k of ['holes', 'tees', 'osmGreens', 'osmHazards', 'verified', 'name']) c[k] = pc[k];
+    c.updated = Date.now();
+    save();
+    return true;
+  } catch { return false; }
+}
+
 async function saveCourse(c, btn) {
   if (btn) btn.innerHTML = '<span class="spin"></span>';
   const pc = await installPack(c.osm);
@@ -258,6 +273,8 @@ let overview = null;
 let ovLayer = null;
 let mapHole = 0;
 let mapWhat = 'green';
+let editMap = false; // taps only change the map when editing is switched on
+let undoStack = [];
 
 const holeHas = (h, what) => !!(what === 'green' ? h.green?.c && (h.greenSet || h.green.poly || h.line) : h.tee);
 
@@ -276,11 +293,12 @@ export function detailView(id) {
         <div class="row between"><div><span class="eyebrow">${c.holes.length} holes · par ${par}</span><h2>${esc(c.name)}</h2></div></div>
         ${c.web ? `<a class="small" href="${esc(c.web)}" target="_blank" rel="noopener">${esc(c.web.replace(/^https?:\/\//, ''))}</a>` : ''}
         <div id="ov-map" class="map tall"></div>
-        <div class="stack" id="mapper">
-          <div class="row between"><b>Map it yourself</b><div class="seg" style="min-width:150px">${['green', 'tee'].map((w) => `<button data-what="${w}" class="${mapWhat === w ? 'on' : ''}">${w === 'green' ? 'Greens' : 'Tees'}</button>`).join('')}</div></div>
+        ${editMap ? `<div class="stack" id="mapper">
+          <div class="row between"><b>Editing the map</b><div class="seg" style="min-width:150px">${['green', 'tee'].map((w) => `<button data-what="${w}" class="${mapWhat === w ? 'on' : ''}">${w === 'green' ? 'Greens' : 'Tees'}</button>`).join('')}</div></div>
           <div class="holes" id="map-holes">${c.holes.map((h, i) => `<button data-mh="${i}" class="${i === mapHole ? 'on' : ''} ${holeHas(h, mapWhat) ? 'done' : ''}">${i + 1}</button>`).join('')}</div>
-          <p class="tiny muted">No hole maps? Pick a hole, then tap the middle of its green on the photo (or its tee in Tees mode). Yellow dashed outlines are greens already on OpenStreetMap: tap inside one and it snaps to the real shape for accurate front and back yardages. It moves on to the next hole by itself.</p>
-        </div>
+          <p class="tiny muted">Pick a hole, then tap the middle of its green on the photo (or its tee in Tees mode). Yellow dashed outlines are greens already on OpenStreetMap: tap inside one and it snaps to the real shape for accurate front and back yardages. It moves on to the next hole by itself.</p>
+          <div class="btns"><button class="btn" id="map-undo" ${undoStack.length ? '' : 'disabled'}>Undo last tap</button><button class="btn primary" id="map-done">${icon('check')} Done</button></div>
+        </div>` : `<div class="btns"><button class="btn" id="map-edit">${icon('edit')} ${mapped ? 'Edit map' : 'Map it yourself'}</button>${c.pack ? `<button class="btn" id="map-restore">Restore original map</button>` : ''}</div>`}
         <p class="small muted">${mapped} of ${c.holes.length} holes have GPS maps${c.layoutFetched ? ` · checked ${fmtDate(new Date(c.layoutFetched).toISOString().slice(0, 10))}` : ''}.</p>
         <div class="btns"><button class="btn primary" id="cd-osm">${icon('layers')} ${mapped ? 'Reload' : 'Load'} hole maps</button><button class="btn" id="cd-tiles">${icon('download')} Save map offline</button></div>
         <p class="tiny muted" id="tile-status">Do both at home on Wi-Fi. Course signal is often poor.</p>
@@ -328,8 +346,25 @@ export function detailView(id) {
       };
       $$('[data-mh]').forEach((b) => (b.onclick = () => { mapHole = +b.dataset.mh; paintMapper(); focusHole(c, mapHole); }));
       $$('[data-what]').forEach((b) => (b.onclick = () => { mapWhat = b.dataset.what; paintMapper(); }));
+      $('#map-edit')?.addEventListener('click', () => { editMap = true; undoStack = []; render(); });
+      $('#map-done')?.addEventListener('click', () => { editMap = false; undoStack = []; render(); });
+      $('#map-undo')?.addEventListener('click', () => {
+        const last = undoStack.pop();
+        if (!last) return;
+        c.holes[last.i] = last.hole; mapHole = last.i; upd();
+        toast(`Hole ${last.i + 1} put back`, 1200);
+        paintMapper(); drawMarkers(c);
+        $('#map-undo').disabled = !undoStack.length;
+      });
+      $('#map-restore')?.addEventListener('click', async () => {
+        if (!(await ask('Restore the original map?', 'Greens, tees, hazards, par, stroke index and ratings go back to how they came in the app. Rounds already played are not affected.', 'Restore'))) return;
+        if (await restorePack(c)) { toast('Original map restored'); render(); } else toast('Could not load the original. Check your connection.');
+      });
       overview?.on('click', (e) => {
+        if (!editMap) return;
         const h = c.holes[mapHole];
+        undoStack.push({ i: mapHole, hole: JSON.parse(JSON.stringify(h)) });
+        $('#map-undo').disabled = false;
         const ll = [+e.latlng.lat.toFixed(6), +e.latlng.lng.toFixed(6)];
         if (mapWhat === 'green') {
           // Snap to a mapped green outline when the tap lands on one
@@ -389,7 +424,10 @@ export function detailView(id) {
         state.courses = state.courses.filter((x) => x.id !== c.id); save(); go('#/courses');
       };
     },
-    unmount() { overview?.remove(); overview = null; ovLayer = null; },
+    unmount() {
+      overview?.remove(); overview = null; ovLayer = null;
+      if (location.hash !== '#/course/' + id) { editMap = false; undoStack = []; } // left the page
+    },
   };
 }
 

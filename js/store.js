@@ -95,8 +95,31 @@ function mergeList(target, incoming) {
   return { added, updated };
 }
 
+const norm = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
 export function mergeIn(data) {
   const res = {};
+  // Each phone may have added the same golfer separately: match players by name
+  // and point the incoming rounds at the player already on this phone.
+  const remap = {};
+  for (const p of data.players || []) {
+    if (state.players.some((x) => x.id === p.id)) continue;
+    const same = state.players.find((x) => norm(x.name) === norm(p.name));
+    if (same) remap[p.id] = same.id;
+  }
+  if (Object.keys(remap).length) {
+    const fix = (id) => remap[id] || id;
+    data = {
+      ...data,
+      players: data.players.filter((p) => !remap[p.id]),
+      rounds: (data.rounds || []).map((r) => ({
+        ...r,
+        players: r.players.map((rp) => ({ ...rp, playerId: fix(rp.playerId) })),
+        shots: (r.shots || []).map((s) => ({ ...s, pid: fix(s.pid) })),
+      })),
+      scores: (data.scores || []).map((s) => ({ ...s, playerId: fix(s.playerId) })),
+    };
+  }
   for (const k of ['players', 'courses', 'rounds', 'trips', 'scores']) {
     if (data[k]) res[k] = mergeList(state[k], data[k]);
   }
