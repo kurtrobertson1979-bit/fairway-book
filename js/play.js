@@ -137,7 +137,7 @@ function startRound() {
   const r = {
     id: uid(), created: Date.now(), updated: Date.now(), date: d.date, courseId: d.courseId, holesMode: d.holesMode,
     format: d.format, allowance: d.allowance ?? W.FORMATS[d.format].allowance, tripId: d.tripId || null,
-    countsForHandicap: d.counts, pcc: d.pcc || 0, status: 'live', currentHole: 0, notes: '',
+    countsForHandicap: d.counts && c.tees.some((t) => t.cr && t.slope), pcc: d.pcc || 0, status: 'live', currentHole: 0, notes: '',
     players: d.players.map((p) => ({ ...p, scores: Array.from({ length: c.holes.length }, () => ({})) })),
     shots: [], side: {},
   };

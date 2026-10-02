@@ -26,11 +26,26 @@ export function listView() {
         <p class="tiny muted" id="c-count">England's courses are built in. Tap the target button for courses near you.</p>
         <div class="list" id="c-results"></div>
       </section>
+      <section class="card" id="packs" hidden></section>
       <section class="stack"><div class="section-h"><h2>Saved courses</h2><button class="btn sm" id="c-manual">${icon('plus')} Add by hand</button></div>
       <div class="card">${state.courses.length ? `<div class="list">${state.courses.map((c) => `<a class="item" href="#/course/${c.id}">${icon('course', 'width="26"')}<div class="grow"><b>${esc(c.name)}</b>
         <p class="small muted">${c.holes.length} holes · ${c.tees.length} tee${c.tees.length === 1 ? '' : 's'} · ${mappedCount(c)} mapped${c.tees.some((t) => !t.cr) ? ' · <span style="color:var(--warn)">ratings needed</span>' : ''}</p></div></a>`).join('')}</div>`
         : '<div class="empty"><p>Search above and save the course you are playing.</p></div>'}</div></section>`,
     mount() {
+      packIndex().then((idx) => {
+        if (searchState.results) paintResults();
+        const todo = Object.entries(idx).filter(([osm]) => !state.courses.some((c) => c.osm === osm));
+        const el = $('#packs');
+        if (!el || !todo.length) return;
+        el.hidden = false;
+        el.innerHTML = `<h2>Ready to play</h2><p class="small muted">Scorecard, ratings and GPS hole maps already set up. One tap and it works offline.</p>
+          <div class="list">${todo.map(([osm, p]) => `<div class="item"><div class="grow"><b>${esc(p.name)}</b><p class="small muted">${esc(p.note || '')}</p></div><button class="btn sm primary" data-pack="${osm}">Add</button></div>`).join('')}</div>`;
+        $$('[data-pack]', el).forEach((b) => (b.onclick = async () => {
+          b.innerHTML = '<span class="spin"></span>';
+          const pc = await installPack(b.dataset.pack);
+          if (pc) { toast('Added ' + pc.name); render(); } else toast('Could not load that course. Check your connection.');
+        }));
+      });
       englandList().then((l) => { const el = $('#c-count'); if (el && l.length) el.textContent = `${l.length.toLocaleString()} English courses built in. Tap the target button for courses near you.`; });
       const q = $('#c-q');
       let t;
@@ -92,7 +107,7 @@ function paintResults(offerOnline = false) {
   if (!res) { el.innerHTML = ''; return; }
   el.innerHTML = res.map((c, i) => {
     const saved = state.courses.find((s) => s.osm && s.osm === c.osm);
-    return `<div class="item"><div class="grow"><b>${esc(c.name)}</b><p class="small muted">${[c.town, c.d != null ? `${(c.d / 1609.34).toFixed(1)} miles` : '', c.holes ? c.holes + ' holes' : ''].filter(Boolean).map(esc).join(' · ')}</p></div>
+    return `<div class="item"><div class="grow"><b>${esc(c.name)}</b>${packs?.[c.osm] ? ' <span class="pill good">Ready to play</span>' : ''}<p class="small muted">${[c.town, c.d != null ? `${(c.d / 1609.34).toFixed(1)} miles` : '', c.holes ? c.holes + ' holes' : ''].filter(Boolean).map(esc).join(' · ')}</p></div>
       ${saved ? `<a class="btn sm" href="#/course/${saved.id}">Open</a>` : `<button class="btn sm primary" data-add="${i}">Save</button>`}</div>`;
   }).join('') + (offerOnline || !res.length ? `<div class="item"><div class="grow small muted">${res.length ? 'Not the one?' : 'No match in the built-in list.'}</div><button class="btn sm" id="c-online">${icon('search')} Search online</button></div>` : '');
   $$('[data-add]', el).forEach((b) => (b.onclick = () => saveCourse(res[+b.dataset.add], b)));
@@ -128,14 +143,37 @@ function defaultTees() {
   ];
 }
 
+// Courses we have fully set up (scorecard, ratings and GPS maps) ship with the app
+let packs = null;
+export async function packIndex() {
+  if (packs) return packs;
+  try { const r = await fetch('data/packs/index.json'); packs = r.ok ? await r.json() : {}; } catch { packs = {}; }
+  return packs;
+}
+
+export async function installPack(osm) {
+  const entry = (await packIndex())[osm];
+  if (!entry) return null;
+  const r = await fetch('data/packs/' + entry.file);
+  if (!r.ok) return null;
+  const pc = await r.json();
+  const i = state.courses.findIndex((x) => x.id === pc.id);
+  if (i >= 0) return state.courses[i];
+  state.courses.push(pc);
+  save();
+  return pc;
+}
+
 async function saveCourse(c, btn) {
+  if (btn) btn.innerHTML = '<span class="spin"></span>';
+  const pc = await installPack(c.osm);
+  if (pc) { toast('Ready to play: scorecard, ratings and GPS maps included'); go('#/course/' + pc.id); return; }
   const nc = {
     id: uid(), created: Date.now(), name: c.name, osm: c.osm, lat: c.lat, lon: c.lon, web: c.web || null, town: c.town || '',
     holes: blankHoles(c.holes === 9 ? 9 : 18), tees: defaultTees(), verified: false,
   };
   state.courses.push(nc);
   save();
-  if (btn) btn.innerHTML = '<span class="spin"></span>';
   try { await loadLayout(nc, true); } catch (e) { toast(e.message, 4000); }
   go('#/course/' + nc.id);
 }

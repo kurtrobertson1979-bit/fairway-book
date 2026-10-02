@@ -321,7 +321,17 @@ function splitLayouts(holes) {
     }
     return chain;
   });
-  return chains.filter((c) => c.length >= 6).sort((a, b) => b.length - a.length);
+  // Drop chains that borrow holes from a better one (e.g. a par-3 nine joined onto the main back nine)
+  const out = [];
+  const taken = new Set();
+  for (const c of chains.filter((x) => x.length >= 6).sort((a, b) => b.length - a.length)) {
+    const own = c.filter((h) => !taken.has(h));
+    if (own.length < c.length - 2) {
+      if (own.length >= 6) out.push(own);
+    } else out.push(c);
+    c.forEach((h) => taken.add(h));
+  }
+  return out;
 }
 
 function buildHole(h, greens, pins, hazards) {
