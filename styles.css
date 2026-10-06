@@ -243,6 +243,7 @@ textarea { min-height: 80px; resize: vertical; }
 .gpsdot.weak { background: var(--warn); }
 .map { height: 360px; border-radius: var(--r); overflow: hidden; background: var(--map-bg); border: 1px solid var(--line); }
 .map.tall { height: 52vh; min-height: 320px; }
+.map.gps { height: 46vh; min-height: 300px; max-height: 520px; }
 .haz { display: grid; grid-template-columns: auto 1fr auto auto; gap: 4px 12px; align-items: center; font-size: .92rem; }
 .haz .t { font-weight: 600; }
 .haz .n { font-family: var(--f-display); font-weight: 700; font-size: 1.25rem; font-variant-numeric: tabular-nums; text-align: right; }
@@ -338,3 +339,15 @@ details > summary::-webkit-details-marker { display: none; }
 }
 .tgt-label.lift { position: absolute; transform: translate(-50%, calc(-100% - 10px)); }
 .tgt-label.mid { position: absolute; transform: translate(-50%, -50%); }
+
+/* round analysis: one tappable row per hole */
+.ana-row { display: grid; grid-template-columns: 2em 2em 2em 2.8em 1fr 3.2em 2.6em; gap: 6px; align-items: center; padding: 8px 2px; font-variant-numeric: tabular-nums; text-align: center; }
+.ana-row > *:first-child { text-align: left; }
+.ana-head { font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); }
+.ana-hole { border-bottom: 1px solid var(--line); }
+.ana-hole > summary { list-style: none; cursor: pointer; }
+.ana-hole > summary::after, .ana-hole[open] > summary::after { content: none !important; display: none; }
+.ana-hole > summary::-webkit-details-marker { display: none; }
+.ana-hole[open] > summary { background: var(--surface-2); border-radius: 8px; }
+.ana-explain { padding: 8px 4px 12px; display: flex; flex-direction: column; gap: 4px; }
+.prose ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }

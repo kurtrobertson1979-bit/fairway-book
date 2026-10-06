@@ -5,6 +5,7 @@ import * as W from './whs.js';
 import * as Geo from './geo.js';
 import { go, render, editPlayer, editTrip } from './app.js';
 import * as Live from './live.js';
+import { analysisCard, mountAnalysis, explainSheet } from './analysis.js';
 
 const units = () => state.settings.units || 'yd';
 const D = (m) => Geo.fmtDist(m, units());
@@ -260,7 +261,7 @@ function paintScore(r, pane, holes, k) {
     <div class="holehead">
       <div class="no">${h.n}</div>
       <div class="meta"><div><b>${h.par}</b><span>Par</span></div><div><b>${h.si ?? '–'}</b><span>SI</span></div>${yards ? `<div><b>${yards}</b><span>${units()}</span></div>` : ''}</div>
-      <div class="grow"></div><button class="chip${state.settings.trackStats === false ? '' : ' on'}" id="stats-tog" title="Log putts, fairways, bunkers and penalties">Stats</button>
+      <div class="grow"></div><button class="chip" id="explain" aria-label="How this hole is scored">?</button><button class="chip${state.settings.trackStats === false ? '' : ' on'}" id="stats-tog" title="Log putts, fairways, bunkers and penalties">Stats</button>
     </div>
     <section class="card">${r.players.map((rp, pi) => playerBlock(r, rp, pi, h, k, strokes[pi][k], rows[pi])).join('')}</section>
     <div class="btns">
@@ -307,6 +308,7 @@ function paintScore(r, pane, holes, k) {
     const e = r.players[+b.dataset.sand].scores[h.i] ||= {};
     e.sand = !e.sand; touch(r, e); paintScore(r, pane, holes, k);
   }));
+  $('#explain', pane).onclick = () => explainSheet(r, k);
   $('#stats-tog', pane).onclick = () => { state.settings.trackStats = state.settings.trackStats === false; save(); paintScore(r, pane, holes, k); };
   $('#prev', pane)?.addEventListener('click', () => { r.currentHole = k - 1; save(); paint(r); });
   $('#next', pane)?.addEventListener('click', () => { r.currentHole = k + 1; save(); paint(r); });
@@ -382,11 +384,13 @@ function paintGps(r, pane, holes, k) {
       <div id="club-tip" class="small"></div>
       ${hasGreen ? '' : `<p class="small"><span class="pill warn">No green mapped for this hole</span> Stand in the middle of the green and tap <b>Green is here</b>, or load the course map from OpenStreetMap.</p>`}
     </section>
-    <section class="card" id="wind-card" hidden></section>
+    <div class="stack" style="gap:6px">
+      <div class="map gps" id="map"></div>
+      <p class="tiny muted">Tap the map to measure to any spot: distance from you, then from there to the green. The lads show as coloured initials when you're in a live group.</p>
+    </div>
     <section class="card" id="group-card" hidden><div class="row between"><h3>The group</h3><span class="pill live">Live</span></div><div class="list" id="group-list"></div></section>
     <section class="card" id="haz-card" ${h.hazards?.length || h.line?.length > 2 ? '' : 'hidden'}><h3>Hazards and landmarks</h3><div class="haz" id="haz"></div></section>
-    <div class="map tall" id="map"></div>
-    <p class="tiny muted">Tap the map to measure to any spot. The label shows distance from you, then from that spot to the green centre.</p>
+    <section class="card" id="wind-card" hidden></section>
     <section class="card">
       <div class="row between"><h3>Track your shots</h3>${r.players.length > 1 ? `<select id="shot-p" style="width:auto;min-height:36px;padding:4px 8px">${r.players.map((rp) => `<option value="${rp.playerId}"${rp.playerId === shotPid ? ' selected' : ''}>${esc(player(rp.playerId)?.name)}</option>`).join('')}</select>` : ''}</div>
       <div class="clubs" id="clubs">${G.CLUBS.filter((x) => x !== 'Pt').map((cl) => `<button class="${cl === shotClub ? 'on' : ''}" data-club="${cl}">${cl}</button>`).join('')}</div>
@@ -615,7 +619,7 @@ export function boardHtml(r, { summary = false } = {}) {
     extra = `<section class="card"><span class="eyebrow">Skins</span><div class="lb">${r.players.map((rp, i) => ({ rp, n: s.won[i] })).sort((a, b) => b.n - a.n).map((x) => `<div class="r" style="grid-template-columns:36px 1fr auto">${avatar(player(x.rp.playerId))}<b>${esc(player(x.rp.playerId)?.name)}</b><span class="main">${x.n}</span></div>`).join('')}</div>
       ${s.carry ? `<p class="small muted">${s.carry} skin${s.carry > 1 ? 's' : ''} carrying over.</p>` : ''}</section>`;
   }
-  const lb = `<section class="card"><div class="row between"><span class="eyebrow">${esc(W.FORMATS[r.format]?.label)} · ${r.allowance}%</span>${summary ? '' : '<span class="pill live">Live</span>'}</div>
+  const lb = `<section class="card"><div class="row between"><span class="eyebrow">${esc(W.FORMATS[r.format]?.label)} · ${r.allowance}%</span>${summary ? '<a class="small" href="#/help">How is this scored?</a>' : '<span class="pill live">Live</span>'}</div>
     <div class="lb">${rows.map((x, i) => `<div class="r"><span class="pos">${x.thru ? i + 1 : '–'}</span>${avatar(x.player)}<div class="stack" style="gap:0;min-width:0"><b class="ellip">${esc(x.player?.name || '?')}</b><span class="tiny muted">plays off ${x.ph ?? '—'}${x.thru && x.thru < G.roundHoles(r, c).length ? ` · thru ${x.thru}` : ''}</span></div>
       <span class="sub">${x.gross ? `${x.gross} gross<br>${toParText(x.toPar)}` : ''}</span><span class="main">${isPts ? x.pts : x.thru ? toParText(x.netToPar) : '–'}</span></div>`).join('')}</div></section>`;
   return extra + lb + scorecardHtml(r);
@@ -729,6 +733,7 @@ export function summaryView(id) {
         <h1>${r.players.length === 1 && w ? (r.format === 'stroke' ? `${w.gross} gross, ${toParText(w.netToPar)} net` : `${w.pts} points`) : w?.player ? `${esc(w.player.name)} wins` : 'Round complete'}</h1>
         <p>${esc(c?.name || '')} · ${esc(W.FORMATS[r.format]?.label)}${G.isNine(r) ? ' · 9 holes' : ''}${r.weather ? ` · ${Math.round(r.weather.temp)}°C, wind ${Math.round(r.weather.wind)} mph` : ''}</p></section>
       ${boardHtml(r, { summary: true })}
+      ${analysisCard(r)}
       <section class="card"><span class="eyebrow">Handicap</span>
         <div class="tbl-wrap"><table class="data"><thead><tr><th>Player</th><th class="r">Adj. gross</th><th class="r">Differential</th><th class="r">App index</th></tr></thead><tbody>${hcpRows}</tbody></table></div>
         <p class="tiny muted">Adjusted gross caps each hole at net double bogey. Highlighted rows are currently among the best 8 of the last 20.${est ? ' <b>Course Rating/Slope missing, so differentials are estimates.</b>' : ''}</p>
@@ -743,6 +748,7 @@ export function summaryView(id) {
       <div class="btns"><button class="btn primary" id="sm-send">${icon('share')} Send round to the lads</button><button class="btn" id="sm-text">Share result text</button></div>
       <div class="btns"><button class="btn" id="sm-edit">${icon('edit')} Edit scores</button><button class="btn danger" id="sm-del">${icon('trash')} Delete</button></div>`,
     mount() {
+      mountAnalysis(r);
       const upd = () => { r.updated = Date.now(); save(); Live.shareRound(r); };
       $('#sm-counts').onchange = (e) => { r.countsForHandicap = e.target.checked; upd(); render(); };
       $('#sm-ntp').onchange = (e) => { (r.side ||= {}).ntp = e.target.value; upd(); };

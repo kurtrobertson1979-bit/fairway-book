@@ -8,6 +8,7 @@ import { fetchWeather, getOnce, WMO, compass } from './geo.js';
 import { demoData } from './demo.js';
 import * as Live from './live.js';
 import * as Plans from './plans.js';
+import * as Analysis from './analysis.js';
 
 /* ---------------- router ---------------- */
 
@@ -37,6 +38,7 @@ const routes = [
   [/^more$/, () => moreView()],
   [/^watch$/, () => watchView()],
   [/^join\/([\w-]+)$/, (code) => joinView(code)],
+  [/^help$/, () => Analysis.helpView()],
 ];
 
 function redirect(h) { setTimeout(() => (location.hash = h), 0); return { html: '' }; }
@@ -325,6 +327,7 @@ function moreView() {
         <a class="item" href="#/players">${icon('people', 'width="24"')}<div class="grow"><b>The lads</b><p class="small muted">${state.players.length} players</p></div></a>
         <a class="item" href="#/trips">${icon('trip', 'width="24"')}<div class="grow"><b>Trips</b><p class="small muted">Weekends away and seasons</p></div></a>
         <a class="item" href="#/rounds">${icon('flag', 'width="24"')}<div class="grow"><b>All rounds</b><p class="small muted">${state.rounds.filter((r) => r.status === 'done').length} finished</p></div></a>
+        <a class="item" href="#/help">${icon('hcp', 'width="24"')}<div class="grow"><b>How scoring works</b><p class="small muted">Par, handicap shots, Stableford points, explained</p></div></a>
         <a class="item" href="#/watch">${icon('watch', 'width="24"')}<div class="grow"><b>Galaxy Watch</b><p class="small muted">Caddie mode and watch options</p></div></a>
       </div></section>
 
